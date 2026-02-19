@@ -223,24 +223,34 @@ export function CropPreviewEditor({
         )}
         </div>{/* end image container */}
 
-        {/* Pixel readout — stacked vertically beside the image */}
-        <div className="flex flex-col gap-1.5 w-28 shrink-0">
+        {/* Pixel inputs — editable, stacked beside the image */}
+        <div className="flex flex-col gap-1.5 w-32 shrink-0">
           {(["top", "right", "bottom", "left"] as const).map((edge) => (
             <div
               key={edge}
-              className="flex items-center justify-between px-2 py-1.5 rounded"
-              style={{
-                background: "hsl(var(--muted))",
-                border: "1px solid hsl(var(--border))",
-              }}
+              className="flex flex-col gap-0.5"
             >
-              <span className="label-mono">{edge}</span>
-              <span
-                className="font-mono text-xs font-semibold"
-                style={{ color: crop[edge] > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+              <span className="label-mono capitalize">{edge}</span>
+              <div
+                className="flex items-center gap-1 px-2 py-1 rounded"
+                style={{
+                  background: "hsl(var(--muted))",
+                  border: `1px solid ${crop[edge] > 0 ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"}`,
+                }}
               >
-                {crop[edge]}px
-              </span>
+                <input
+                  type="number"
+                  min={0}
+                  value={crop[edge]}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    onChange({ ...crop, [edge]: val });
+                  }}
+                  className="w-full bg-transparent font-mono text-xs font-semibold outline-none min-w-0"
+                  style={{ color: crop[edge] > 0 ? "hsl(var(--primary))" : "hsl(var(--foreground))" }}
+                />
+                <span className="label-mono shrink-0">px</span>
+              </div>
             </div>
           ))}
         </div>
