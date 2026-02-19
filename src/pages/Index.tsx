@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { CropControls } from "@/components/CropControls";
 import { ImageCard } from "@/components/ImageCard";
+import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { cropImageFile, croppedFileName, CropValues } from "@/lib/cropImage";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
@@ -20,6 +21,7 @@ export default function Index() {
   const [crop, setCrop] = useState<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [firstImageNaturalSize, setFirstImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cleanup object URLs on unmount
@@ -40,7 +42,20 @@ export default function Index() {
       status: "idle",
     }));
 
-    setImages((prev) => [...prev, ...entries]);
+    setImages((prev) => {
+      const wasEmpty = prev.length === 0;
+      const next = [...prev, ...entries];
+      // Measure the first image natural size when first image is added
+      if (wasEmpty && entries.length > 0) {
+        const img = new Image();
+        img.onload = () => {
+          setFirstImageNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = entries[0].previewUrl;
+      }
+      return next;
+    });
   }, []);
 
   const handleDrop = useCallback(
@@ -70,6 +85,7 @@ export default function Index() {
   const clearAll = () => {
     images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     setImages([]);
+    setFirstImageNaturalSize(null);
   };
 
   const hasCrop =
@@ -163,34 +179,28 @@ export default function Index() {
       <div className="flex h-[calc(100vh-61px)]">
         {/* Sidebar: controls */}
         <aside
-          className="w-72 shrink-0 border-r p-5 space-y-6 overflow-y-auto"
+          className="w-80 shrink-0 border-r p-5 space-y-6 overflow-y-auto"
           style={{ borderColor: "hsl(var(--border))" }}
         >
-          <div>
-            <h2
-              className="text-xs font-semibold uppercase tracking-widest mb-4"
-              style={{ color: "hsl(var(--muted-foreground))" }}
-            >
-              Crop Edges
-            </h2>
-            <CropControls values={crop} onChange={setCrop} />
-          </div>
-
-          {/* Summary */}
-          {hasCrop && (
-            <div
-              className="rounded p-3 space-y-1"
-              style={{ background: "hsl(var(--primary) / 0.06)", border: "1px solid hsl(var(--primary) / 0.15)" }}
-            >
-              <p className="label-mono" style={{ color: "hsl(var(--primary))" }}>
-                Crop preview
-              </p>
-              <p
-                className="text-xs font-mono font-medium"
-                style={{ color: "hsl(var(--primary))" }}
+          {/* Visual crop editor — shown when first image is loaded */}
+          {images.length > 0 && firstImageNaturalSize ? (
+            <CropPreviewEditor
+              imageUrl={images[0].previewUrl}
+              imageName={images[0].file.name}
+              naturalWidth={firstImageNaturalSize.w}
+              naturalHeight={firstImageNaturalSize.h}
+              crop={crop}
+              onChange={setCrop}
+            />
+          ) : (
+            <div>
+              <h2
+                className="text-xs font-semibold uppercase tracking-widest mb-4"
+                style={{ color: "hsl(var(--muted-foreground))" }}
               >
-                {totalCropSummary()} px
-              </p>
+                Crop Edges
+              </h2>
+              <CropControls values={crop} onChange={setCrop} />
             </div>
           )}
 
@@ -222,7 +232,7 @@ export default function Index() {
 
           {!hasCrop && images.length > 0 && (
             <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Set at least one crop value above to enable download.
+              Drag the edges on the preview image to set the crop.
             </p>
           )}
         </aside>
