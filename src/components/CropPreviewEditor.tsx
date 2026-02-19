@@ -119,8 +119,9 @@ export function CropPreviewEditor({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Header row */}
       <div className="flex items-center justify-between">
-        <p className="label-mono">Crop Preview</p>
+        <p className="label-mono">Crop Preview — drag edges to set crop</p>
         {hasCrop && (
           <button
             className="label-mono hover:text-primary transition-colors"
@@ -132,12 +133,14 @@ export function CropPreviewEditor({
         )}
       </div>
 
-      {/* Image container */}
-      <div
-        ref={containerRef}
-        className="relative select-none overflow-hidden rounded"
-        style={{ border: "1px solid hsl(var(--border))" }}
-      >
+      {/* Image + readout side by side */}
+      <div className="flex gap-4 items-start">
+        {/* Image container — grows to fill available width */}
+        <div
+          ref={containerRef}
+          className="relative select-none overflow-hidden rounded flex-1 min-w-0"
+          style={{ border: "1px solid hsl(var(--border))" }}
+        >
         <img
           ref={imgRef}
           src={imageUrl}
@@ -212,30 +215,32 @@ export function CropPreviewEditor({
             </p>
           </div>
         )}
-      </div>
+        </div>{/* end image container */}
 
-      {/* Pixel readout */}
-      <div className="grid grid-cols-2 gap-1.5">
-        {(["top", "right", "bottom", "left"] as const).map((edge) => (
-          <div
-            key={edge}
-            className="flex items-center justify-between px-2 py-1 rounded"
-            style={{
-              background: "hsl(var(--muted))",
-              border: "1px solid hsl(var(--border))",
-            }}
-          >
-            <span className="label-mono">{edge}</span>
-            <span
-              className="font-mono text-xs font-semibold"
-              style={{ color: crop[edge] > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+        {/* Pixel readout — stacked vertically beside the image */}
+        <div className="flex flex-col gap-1.5 w-28 shrink-0">
+          {(["top", "right", "bottom", "left"] as const).map((edge) => (
+            <div
+              key={edge}
+              className="flex items-center justify-between px-2 py-1.5 rounded"
+              style={{
+                background: "hsl(var(--muted))",
+                border: "1px solid hsl(var(--border))",
+              }}
             >
-              {crop[edge]}px
-            </span>
-          </div>
-        ))}
-      </div>
+              <span className="label-mono">{edge}</span>
+              <span
+                className="font-mono text-xs font-semibold"
+                style={{ color: crop[edge] > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+              >
+                {crop[edge]}px
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>{/* end flex row */}
     </div>
   );
 }
+
 
