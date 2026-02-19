@@ -4,7 +4,9 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
 import { CropPreviewEditor } from "@/components/CropPreviewEditor";
+import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { cropImageFile, croppedFileName, CropValues } from "@/lib/cropImage";
+import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 
@@ -22,6 +24,7 @@ export default function Index() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
+  const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,11 +46,30 @@ export default function Index() {
 
     setImages((prev) => {
       const isFirst = prev.length === 0;
+      let loadedCount = 0;
+
       entries.forEach((entry, i) => {
         const measureUrl = URL.createObjectURL(entry.file);
         const img = new Image();
         img.onload = () => {
-          setNaturalSizes((s) => ({ ...s, [entry.id]: { w: img.naturalWidth, h: img.naturalHeight } }));
+          setNaturalSizes((s) => {
+            const next = { ...s, [entry.id]: { w: img.naturalWidth, h: img.naturalHeight } };
+            // Once all new entries are measured, check for mixed dimensions
+            loadedCount++;
+            if (loadedCount === entries.length) {
+              // Merge with any previously loaded sizes from existing images
+              setImages((current) => {
+                const allIds = current.map((im) => im.id);
+                const allSizes: Record<string, { w: number; h: number }> = {};
+                allIds.forEach((id) => { if (next[id]) allSizes[id] = next[id]; });
+                if (hasMixedDimensions(allSizes)) {
+                  setShowNormalizeDialog(true);
+                }
+                return current;
+              });
+            }
+            return next;
+          });
           URL.revokeObjectURL(measureUrl);
           if (isFirst && i === 0) setSelectedId(entry.id);
         };
@@ -57,6 +79,44 @@ export default function Index() {
       return [...prev, ...entries];
     });
   }, []);
+
+  /** Stretch every image in the batch that doesn't match the chosen preset. */
+  const handleNormalize = useCallback(async (preset: AspectPreset) => {
+    setImages((prev) =>
+      prev.map((img) => ({ ...img, status: "processing" as const }))
+    );
+
+    const updated = await Promise.all(
+      images.map(async (entry) => {
+        const size = naturalSizes[entry.id];
+        if (size && size.w === preset.w && size.h === preset.h) {
+          // Already the right size — nothing to do
+          return entry;
+        }
+        try {
+          const blob = await stretchImageToSize(entry.file, preset.w, preset.h);
+          const newFile = new File([blob], entry.file.name, { type: entry.file.type });
+          URL.revokeObjectURL(entry.previewUrl);
+          return {
+            ...entry,
+            file: newFile,
+            previewUrl: URL.createObjectURL(blob),
+            status: "idle" as const,
+          };
+        } catch {
+          return { ...entry, status: "idle" as const };
+        }
+      })
+    );
+
+    // Update natural sizes to the preset dimensions for all entries
+    const newSizes: Record<string, { w: number; h: number }> = {};
+    updated.forEach((e) => { newSizes[e.id] = { w: preset.w, h: preset.h }; });
+
+    setNaturalSizes((s) => ({ ...s, ...newSizes }));
+    setImages(updated);
+    setShowNormalizeDialog(false);
+  }, [images, naturalSizes]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -153,6 +213,15 @@ export default function Index() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
+      {/* Normalisation dialog — shown when mixed dimensions are detected */}
+      {showNormalizeDialog && (
+        <NormalizeDialog
+          sizes={naturalSizes}
+          onConfirm={handleNormalize}
+          onSkip={() => setShowNormalizeDialog(false)}
+        />
+      )}
+
       {/* Header */}
       <header
         className="border-b px-6 py-4 flex items-center gap-3 shrink-0"
