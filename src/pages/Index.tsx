@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2 } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
@@ -7,6 +7,7 @@ import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { cropImageFile, croppedFileName, CropValues } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
+import { pdfToImages } from "@/lib/pdfToImages";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 
@@ -25,6 +26,7 @@ export default function Index() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -33,11 +35,11 @@ export default function Index() {
     };
   }, []);
 
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (!arr.length) return;
+  /** Register image File objects as entries and measure their dimensions. */
+  const addImageFiles = useCallback((imageFiles: File[], selectFirst = false) => {
+    if (!imageFiles.length) return;
 
-    const entries: ImageEntry[] = arr.map((file) => ({
+    const entries: ImageEntry[] = imageFiles.map((file) => ({
       id: `${file.name}-${Date.now()}-${Math.random()}`,
       file,
       previewUrl: URL.createObjectURL(file),
@@ -45,7 +47,7 @@ export default function Index() {
     }));
 
     setImages((prev) => {
-      const isFirst = prev.length === 0;
+      const isFirst = selectFirst && prev.length === 0;
       let loadedCount = 0;
 
       entries.forEach((entry, i) => {
@@ -54,10 +56,8 @@ export default function Index() {
         img.onload = () => {
           setNaturalSizes((s) => {
             const next = { ...s, [entry.id]: { w: img.naturalWidth, h: img.naturalHeight } };
-            // Once all new entries are measured, check for mixed dimensions
             loadedCount++;
             if (loadedCount === entries.length) {
-              // Merge with any previously loaded sizes from existing images
               setImages((current) => {
                 const allIds = current.map((im) => im.id);
                 const allSizes: Record<string, { w: number; h: number }> = {};
@@ -79,6 +79,34 @@ export default function Index() {
       return [...prev, ...entries];
     });
   }, []);
+
+  /** Handle any mix of image and PDF files dropped or selected. */
+  const addFiles = useCallback(async (files: FileList | File[]) => {
+    const arr = Array.from(files);
+    const imageFiles = arr.filter((f) => f.type.startsWith("image/"));
+    const pdfFiles = arr.filter((f) => f.type === "application/pdf");
+
+    // Add plain images immediately
+    const isFirstBatch = imageFiles.length > 0;
+    addImageFiles(imageFiles, true);
+
+    // Convert each PDF sequentially, showing progress
+    for (const pdf of pdfFiles) {
+      setPdfProgress({ done: 0, total: 0, name: pdf.name });
+      try {
+        const pages = await pdfToImages(pdf, 2, (done, total) => {
+          setPdfProgress({ done, total, name: pdf.name });
+        });
+        const convertedFiles = pages.map(
+          ({ blob, name }) => new File([blob], name, { type: "image/png" })
+        );
+        addImageFiles(convertedFiles, !isFirstBatch);
+      } catch (err) {
+        console.error("PDF conversion failed:", err);
+      }
+      setPdfProgress(null);
+    }
+  }, [addImageFiles]);
 
   /** Stretch every image in the batch that doesn't match the chosen preset. */
   const handleNormalize = useCallback(async (preset: AspectPreset) => {
@@ -213,7 +241,45 @@ export default function Index() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
-      {/* Normalisation dialog — shown when mixed dimensions are detected */}
+      {/* PDF conversion progress overlay */}
+      {pdfProgress && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "hsl(var(--background) / 0.85)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            className="flex flex-col items-center gap-4 rounded-xl px-8 py-7"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", minWidth: 300 }}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText size={18} style={{ color: "hsl(var(--primary))" }} />
+              <span className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                Converting PDF…
+              </span>
+            </div>
+            <p className="label-mono text-center" style={{ maxWidth: 240 }}>{pdfProgress.name}</p>
+            {pdfProgress.total > 0 && (
+              <>
+                <div
+                  className="w-full h-1.5 rounded-full overflow-hidden"
+                  style={{ background: "hsl(var(--muted))" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.round((pdfProgress.done / pdfProgress.total) * 100)}%`,
+                      background: "hsl(var(--primary))",
+                    }}
+                  />
+                </div>
+                <span className="label-mono">
+                  Page {pdfProgress.done} / {pdfProgress.total}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {showNormalizeDialog && (
         <NormalizeDialog
           sizes={naturalSizes}
@@ -304,12 +370,12 @@ export default function Index() {
                   className="text-sm"
                   style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
                 >
-                  {isDragging ? "Drop images here" : "Add more images"}
+                  {isDragging ? "Drop files here" : "Add more images or PDFs"}
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   multiple
                   className="hidden"
                   onChange={(e) => e.target.files && addFiles(e.target.files)}
@@ -370,14 +436,14 @@ export default function Index() {
                   className="text-sm font-medium"
                   style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--foreground))" }}
                 >
-                  {isDragging ? "Drop images here" : "Drop images or click to browse"}
+                  {isDragging ? "Drop files here" : "Drop images or PDFs · click to browse"}
                 </p>
-                <p className="label-mono mt-1">JPG · PNG · WEBP · GIF</p>
+                <p className="label-mono mt-1">JPG · PNG · WEBP · PDF</p>
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,application/pdf"
                 multiple
                 className="hidden"
                 onChange={(e) => e.target.files && addFiles(e.target.files)}
