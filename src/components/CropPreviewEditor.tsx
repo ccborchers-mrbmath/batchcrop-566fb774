@@ -170,53 +170,29 @@ export function CropPreviewEditor({
           style={{ width: rightPx, background: overlayColor, borderLeft: `1px solid ${handleColor}` }}
         />
 
-        {/* Draggable handles */}
+        {/* Draggable handles — inlined divs, no component to avoid ref warnings */}
         {/* Top handle */}
-        <EdgeHandle
-          edge="top"
-          style={{
-            top: topPx - HANDLE_THICKNESS / 2,
-            left: 0,
-            right: 0,
-            height: HANDLE_THICKNESS * 2,
-            cursor: "ns-resize",
-          }}
+        <div
+          className="absolute z-10"
+          style={{ top: topPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
           onMouseDown={(e) => onMouseDown(e, "top")}
         />
         {/* Bottom handle */}
-        <EdgeHandle
-          edge="bottom"
-          style={{
-            bottom: bottomPx - HANDLE_THICKNESS / 2,
-            left: 0,
-            right: 0,
-            height: HANDLE_THICKNESS * 2,
-            cursor: "ns-resize",
-          }}
+        <div
+          className="absolute z-10"
+          style={{ bottom: bottomPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
           onMouseDown={(e) => onMouseDown(e, "bottom")}
         />
         {/* Left handle */}
-        <EdgeHandle
-          edge="left"
-          style={{
-            left: leftPx - HANDLE_THICKNESS / 2,
-            top: 0,
-            bottom: 0,
-            width: HANDLE_THICKNESS * 2,
-            cursor: "ew-resize",
-          }}
+        <div
+          className="absolute z-10"
+          style={{ left: leftPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
           onMouseDown={(e) => onMouseDown(e, "left")}
         />
         {/* Right handle */}
-        <EdgeHandle
-          edge="right"
-          style={{
-            right: rightPx - HANDLE_THICKNESS / 2,
-            top: 0,
-            bottom: 0,
-            width: HANDLE_THICKNESS * 2,
-            cursor: "ew-resize",
-          }}
+        <div
+          className="absolute z-10"
+          style={{ right: rightPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
           onMouseDown={(e) => onMouseDown(e, "right")}
         />
 
@@ -263,19 +239,3 @@ export function CropPreviewEditor({
   );
 }
 
-function EdgeHandle({
-  style,
-  onMouseDown,
-}: {
-  edge: string;
-  style: React.CSSProperties;
-  onMouseDown: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <div
-      className="absolute z-10"
-      style={{ ...style, touchAction: "none" }}
-      onMouseDown={onMouseDown}
-    />
-  );
-}
