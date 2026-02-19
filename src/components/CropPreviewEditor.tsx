@@ -37,6 +37,12 @@ export function CropPreviewEditor({
     setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
   }, []);
 
+  // Reset display size when image changes so stale dimensions don't corrupt
+  // the scale factors before the new image fires its onLoad event.
+  useEffect(() => {
+    setDisplaySize({ w: 0, h: 0 });
+  }, [imageUrl]);
+
   useEffect(() => {
     const observer = new ResizeObserver(updateDisplaySize);
     if (imgRef.current) observer.observe(imgRef.current);
