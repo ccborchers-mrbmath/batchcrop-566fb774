@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, Download, Scissors, Trash2 } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { CropControls } from "@/components/CropControls";
 import { ImageCard } from "@/components/ImageCard";
 import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { cropImageFile, croppedFileName, CropValues } from "@/lib/cropImage";
@@ -18,10 +17,11 @@ interface ImageEntry {
 
 export default function Index() {
   const [images, setImages] = useState<ImageEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [firstImageNaturalSize, setFirstImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,17 +42,18 @@ export default function Index() {
     }));
 
     setImages((prev) => {
-      const wasEmpty = prev.length === 0;
-      if (wasEmpty && entries.length > 0) {
-        const measureUrl = URL.createObjectURL(entries[0].file);
+      const isFirst = prev.length === 0;
+      entries.forEach((entry, i) => {
+        const measureUrl = URL.createObjectURL(entry.file);
         const img = new Image();
         img.onload = () => {
-          setFirstImageNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+          setNaturalSizes((s) => ({ ...s, [entry.id]: { w: img.naturalWidth, h: img.naturalHeight } }));
           URL.revokeObjectURL(measureUrl);
+          if (isFirst && i === 0) setSelectedId(entry.id);
         };
         img.onerror = () => URL.revokeObjectURL(measureUrl);
         img.src = measureUrl;
-      }
+      });
       return [...prev, ...entries];
     });
   }, []);
@@ -77,14 +78,22 @@ export default function Index() {
     setImages((prev) => {
       const entry = prev.find((img) => img.id === id);
       if (entry) URL.revokeObjectURL(entry.previewUrl);
-      return prev.filter((img) => img.id !== id);
+      const next = prev.filter((img) => img.id !== id);
+      // If the removed image was selected, select the first remaining
+      if (id === selectedId && next.length > 0) {
+        setSelectedId(next[0].id);
+      } else if (next.length === 0) {
+        setSelectedId(null);
+      }
+      return next;
     });
   };
 
   const clearAll = () => {
     images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     setImages([]);
-    setFirstImageNaturalSize(null);
+    setNaturalSizes({});
+    setSelectedId(null);
   };
 
   const hasCrop =
@@ -139,6 +148,9 @@ export default function Index() {
     }, 3000);
   };
 
+  const selectedEntry = images.find((i) => i.id === selectedId);
+  const selectedSize = selectedId ? naturalSizes[selectedId] : null;
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
       {/* Header */}
@@ -161,7 +173,6 @@ export default function Index() {
           </p>
         </div>
 
-        {/* Action buttons in header when images loaded */}
         {images.length > 0 && (
           <div className="flex items-center gap-2">
             <button
@@ -189,8 +200,7 @@ export default function Index() {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
-        {images.length > 0 && firstImageNaturalSize ? (
-          /* ── WITH IMAGES: full-width crop preview + grid below ── */
+        {images.length > 0 && selectedEntry && selectedSize ? (
           <div className="flex flex-col">
             {/* Full-width crop preview */}
             <div
@@ -198,10 +208,10 @@ export default function Index() {
               style={{ borderColor: "hsl(var(--border))" }}
             >
               <CropPreviewEditor
-                imageUrl={images[0].previewUrl}
-                imageName={images[0].file.name}
-                naturalWidth={firstImageNaturalSize.w}
-                naturalHeight={firstImageNaturalSize.h}
+                imageUrl={selectedEntry.previewUrl}
+                imageName={selectedEntry.file.name}
+                naturalWidth={selectedSize.w}
+                naturalHeight={selectedSize.h}
                 crop={crop}
                 onChange={setCrop}
               />
@@ -252,6 +262,8 @@ export default function Index() {
                       cropBottom={crop.bottom}
                       cropLeft={crop.left}
                       onRemove={() => removeImage(img.id)}
+                      onSelect={() => setSelectedId(img.id)}
+                      isSelected={img.id === selectedId}
                       status={img.status}
                     />
                   ))}
