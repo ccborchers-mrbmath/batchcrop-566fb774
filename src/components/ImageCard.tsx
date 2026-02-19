@@ -1,8 +1,11 @@
+import { useRef, useState, useEffect } from "react";
 import { X, ImageIcon } from "lucide-react";
 
 interface ImageCardProps {
   file: File;
   previewUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
   cropTop: number;
   cropRight: number;
   cropBottom: number;
@@ -16,6 +19,8 @@ interface ImageCardProps {
 export function ImageCard({
   file,
   previewUrl,
+  naturalWidth,
+  naturalHeight,
   cropTop,
   cropRight,
   cropBottom,
@@ -26,6 +31,37 @@ export function ImageCard({
   status,
 }: ImageCardProps) {
   const sizeKB = (file.size / 1024).toFixed(0);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    setDisplaySize({ w: 0, h: 0 });
+  }, [previewUrl]);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const update = () => setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
+    const observer = new ResizeObserver(update);
+    observer.observe(img);
+    return () => observer.disconnect();
+  }, []);
+
+  // Convert real pixel crop values → display pixel positions proportionally,
+  // identical logic to the main CropPreviewEditor so overlays are always accurate.
+  const scaleX = naturalWidth > 0 && displaySize.w > 0 ? displaySize.w / naturalWidth : 0;
+  const scaleY = naturalHeight > 0 && displaySize.h > 0 ? displaySize.h / naturalHeight : 0;
+  const topPx    = cropTop    * scaleY;
+  const bottomPx = cropBottom * scaleY;
+  const leftPx   = cropLeft   * scaleX;
+  const rightPx  = cropRight  * scaleX;
+  const hasAnyCrop = cropTop > 0 || cropRight > 0 || cropBottom > 0 || cropLeft > 0;
+
+  const overlayBase: React.CSSProperties = {
+    background: "hsl(var(--primary) / 0.35)",
+    position: "absolute",
+    pointerEvents: "none",
+  };
 
   return (
     <div
@@ -81,13 +117,38 @@ export function ImageCard({
         className="relative overflow-hidden flex items-center justify-center"
         style={{ height: 140, background: "hsl(var(--muted))" }}
       >
-        <img
-          src={previewUrl}
-          alt={file.name}
-          className="max-w-full max-h-full object-contain"
-          draggable={false}
-        />
-        <CropOverlay top={cropTop} right={cropRight} bottom={cropBottom} left={cropLeft} />
+        {/* Inner wrapper sized to the rendered image so overlays sit exactly on it */}
+        <div className="relative" style={{ lineHeight: 0 }}>
+          <img
+            ref={imgRef}
+            src={previewUrl}
+            alt={file.name}
+            className="block"
+            style={{ maxWidth: "100%", maxHeight: 140, display: "block" }}
+            draggable={false}
+            onLoad={() => {
+              const img = imgRef.current;
+              if (img) setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
+            }}
+          />
+          {/* Scaled crop overlays — proportional to each image's own dimensions */}
+          {hasAnyCrop && displaySize.w > 0 && (
+            <>
+              {cropTop > 0 && (
+                <div style={{ ...overlayBase, top: 0, left: 0, right: 0, height: topPx, borderBottom: "1px solid hsl(var(--primary) / 0.7)" }} />
+              )}
+              {cropBottom > 0 && (
+                <div style={{ ...overlayBase, bottom: 0, left: 0, right: 0, height: bottomPx, borderTop: "1px solid hsl(var(--primary) / 0.7)" }} />
+              )}
+              {cropLeft > 0 && (
+                <div style={{ ...overlayBase, top: 0, left: 0, bottom: 0, width: leftPx, borderRight: "1px solid hsl(var(--primary) / 0.7)" }} />
+              )}
+              {cropRight > 0 && (
+                <div style={{ ...overlayBase, top: 0, right: 0, bottom: 0, width: rightPx, borderLeft: "1px solid hsl(var(--primary) / 0.7)" }} />
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* File info */}
@@ -105,72 +166,5 @@ export function ImageCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function CropOverlay({
-  top,
-  right,
-  bottom,
-  left,
-}: {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}) {
-  const hasAnyCrop = top > 0 || right > 0 || bottom > 0 || left > 0;
-  if (!hasAnyCrop) return null;
-
-  const overlayStyle = {
-    background: "hsl(var(--primary) / 0.25)",
-    position: "absolute" as const,
-  };
-
-  const pct = (v: number) => `${Math.min(v, 999)}px`;
-
-  return (
-    <>
-      {top > 0 && (
-        <div
-          style={{
-            ...overlayStyle,
-            top: 0, left: 0, right: 0,
-            height: pct(top),
-            borderBottom: "1px solid hsl(var(--primary) / 0.6)",
-          }}
-        />
-      )}
-      {bottom > 0 && (
-        <div
-          style={{
-            ...overlayStyle,
-            bottom: 0, left: 0, right: 0,
-            height: pct(bottom),
-            borderTop: "1px solid hsl(var(--primary) / 0.6)",
-          }}
-        />
-      )}
-      {left > 0 && (
-        <div
-          style={{
-            ...overlayStyle,
-            top: 0, left: 0, bottom: 0,
-            width: pct(left),
-            borderRight: "1px solid hsl(var(--primary) / 0.6)",
-          }}
-        />
-      )}
-      {right > 0 && (
-        <div
-          style={{
-            ...overlayStyle,
-            top: 0, right: 0, bottom: 0,
-            width: pct(right),
-            borderLeft: "1px solid hsl(var(--primary) / 0.6)",
-          }}
-        />
-      )}
-    </>
   );
 }

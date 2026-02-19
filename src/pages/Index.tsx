@@ -257,6 +257,8 @@ export default function Index() {
                       key={img.id}
                       file={img.file}
                       previewUrl={img.previewUrl}
+                      naturalWidth={naturalSizes[img.id]?.w ?? 0}
+                      naturalHeight={naturalSizes[img.id]?.h ?? 0}
                       cropTop={crop.top}
                       cropRight={crop.right}
                       cropBottom={crop.bottom}
