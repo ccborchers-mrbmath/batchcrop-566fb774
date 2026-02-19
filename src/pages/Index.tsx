@@ -24,7 +24,6 @@ export default function Index() {
   const [firstImageNaturalSize, setFirstImageNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cleanup object URLs on unmount
   useEffect(() => {
     return () => {
       images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
@@ -44,8 +43,6 @@ export default function Index() {
 
     setImages((prev) => {
       const wasEmpty = prev.length === 0;
-      // Measure the first image's natural size using a SEPARATE object URL
-      // so we don't revoke the one used for display
       if (wasEmpty && entries.length > 0) {
         const measureUrl = URL.createObjectURL(entries[0].file);
         const img = new Image();
@@ -97,7 +94,6 @@ export default function Index() {
     if (!images.length || !hasCrop) return;
     setIsProcessing(true);
 
-    // Mark all as processing
     setImages((prev) => prev.map((img) => ({ ...img, status: "processing" })));
 
     const zip = new JSZip();
@@ -127,39 +123,27 @@ export default function Index() {
     );
 
     if (images.length === 1) {
-      // Single file: download directly
       const result = results[0];
       if (result.status === "fulfilled") {
         saveAs(result.value.blob, result.value.name);
       }
     } else {
-      // Multiple: zip
       const zipBlob = await zip.generateAsync({ type: "blob" });
       saveAs(zipBlob, "cropped_images.zip");
     }
 
     setIsProcessing(false);
 
-    // Reset statuses after short delay
     setTimeout(() => {
       setImages((prev) => prev.map((img) => ({ ...img, status: "idle" })));
     }, 3000);
   };
 
-  const totalCropSummary = () => {
-    const parts = [];
-    if (crop.top) parts.push(`↑${crop.top}`);
-    if (crop.right) parts.push(`→${crop.right}`);
-    if (crop.bottom) parts.push(`↓${crop.bottom}`);
-    if (crop.left) parts.push(`←${crop.left}`);
-    return parts.length ? parts.join("  ") : "No crop set";
-  };
-
   return (
-    <div className="min-h-screen" style={{ background: "hsl(var(--background))" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
       {/* Header */}
       <header
-        className="border-b px-6 py-4 flex items-center gap-3"
+        className="border-b px-6 py-4 flex items-center gap-3 shrink-0"
         style={{ borderColor: "hsl(var(--border))" }}
       >
         <div
@@ -168,7 +152,7 @@ export default function Index() {
         >
           <Scissors size={16} style={{ color: "hsl(var(--primary))" }} />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-sm font-semibold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
             BatchCrop
           </h1>
@@ -176,150 +160,148 @@ export default function Index() {
             pixel-perfect edge cropping
           </p>
         </div>
-      </header>
 
-      <div className="flex h-[calc(100vh-61px)]">
-        {/* Sidebar: controls */}
-        <aside
-          className="w-80 shrink-0 border-r p-5 space-y-6 overflow-y-auto"
-          style={{ borderColor: "hsl(var(--border))" }}
-        >
-          {/* Visual crop editor — shown when first image is loaded */}
-          {images.length > 0 && firstImageNaturalSize ? (
-            <CropPreviewEditor
-              imageUrl={images[0].previewUrl}
-              imageName={images[0].file.name}
-              naturalWidth={firstImageNaturalSize.w}
-              naturalHeight={firstImageNaturalSize.h}
-              crop={crop}
-              onChange={setCrop}
-            />
-          ) : (
-            <div>
-              <h2
-                className="text-xs font-semibold uppercase tracking-widest mb-4"
-                style={{ color: "hsl(var(--muted-foreground))" }}
-              >
-                Crop Edges
-              </h2>
-              <CropControls values={crop} onChange={setCrop} />
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="space-y-2 pt-2">
+        {/* Action buttons in header when images loaded */}
+        {images.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearAll}
+              className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+            >
+              <Trash2 size={13} />
+              Clear all
+            </button>
             <button
               onClick={handleCropAndDownload}
-              disabled={!images.length || !hasCrop || isProcessing}
-              className="btn-primary w-full px-4 py-2.5 text-sm flex items-center justify-center gap-2"
+              disabled={!hasCrop || isProcessing}
+              className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2"
             >
-              <Download size={14} />
+              <Download size={13} />
               {isProcessing
                 ? "Processing…"
                 : images.length > 1
                 ? `Crop & Download ZIP (${images.length})`
                 : "Crop & Download"}
             </button>
-
-            {images.length > 0 && (
-              <button
-                onClick={clearAll}
-                className="btn-secondary w-full px-4 py-2 text-sm flex items-center justify-center gap-2"
-              >
-                <Trash2 size={14} />
-                Clear all
-              </button>
-            )}
           </div>
+        )}
+      </header>
 
-          {!hasCrop && images.length > 0 && (
-            <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Drag the edges on the preview image to set the crop.
-            </p>
-          )}
-        </aside>
-
-        {/* Main: upload + grid */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Drop zone */}
-          <div
-            className={`drop-zone rounded-lg flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${isDragging ? "active" : ""}`}
-            style={{ minHeight: images.length ? 120 : 300 }}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onClick={() => fileInputRef.current?.click()}
-          >
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto">
+        {images.length > 0 && firstImageNaturalSize ? (
+          /* ── WITH IMAGES: full-width crop preview + grid below ── */
+          <div className="flex flex-col">
+            {/* Full-width crop preview */}
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{
-                background: isDragging
-                  ? "hsl(var(--primary) / 0.15)"
-                  : "hsl(var(--muted))",
-                border: "1px solid hsl(var(--border))",
-              }}
+              className="border-b px-6 py-5"
+              style={{ borderColor: "hsl(var(--border))" }}
             >
-              <Upload
-                size={18}
-                style={{
-                  color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                }}
+              <CropPreviewEditor
+                imageUrl={images[0].previewUrl}
+                imageName={images[0].file.name}
+                naturalWidth={firstImageNaturalSize.w}
+                naturalHeight={firstImageNaturalSize.h}
+                crop={crop}
+                onChange={setCrop}
               />
             </div>
-            <div className="text-center">
-              <p
-                className="text-sm font-medium"
-                style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--foreground))" }}
-              >
-                {isDragging ? "Drop images here" : "Drop images or click to browse"}
-              </p>
-              <p className="label-mono mt-1">JPG · PNG · WEBP · GIF</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => e.target.files && addFiles(e.target.files)}
-            />
-          </div>
 
-          {/* Image grid */}
-          {images.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="label-mono">
+            {/* Drop zone (compact) + image grid */}
+            <div className="p-6 space-y-5">
+              <div
+                className={`drop-zone rounded-lg flex items-center justify-center gap-3 cursor-pointer transition-all px-4 ${isDragging ? "active" : ""}`}
+                style={{ minHeight: 72 }}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload
+                  size={15}
+                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                />
+                <p
+                  className="text-sm"
+                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                >
+                  {isDragging ? "Drop images here" : "Add more images"}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && addFiles(e.target.files)}
+                />
+              </div>
+
+              <div>
+                <p className="label-mono mb-3">
                   {images.length} image{images.length !== 1 ? "s" : ""} loaded
                 </p>
-              </div>
-              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
-                {images.map((img) => (
-                  <ImageCard
-                    key={img.id}
-                    file={img.file}
-                    previewUrl={img.previewUrl}
-                    cropTop={crop.top}
-                    cropRight={crop.right}
-                    cropBottom={crop.bottom}
-                    cropLeft={crop.left}
-                    onRemove={() => removeImage(img.id)}
-                    status={img.status}
-                  />
-                ))}
+                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
+                  {images.map((img) => (
+                    <ImageCard
+                      key={img.id}
+                      file={img.file}
+                      previewUrl={img.previewUrl}
+                      cropTop={crop.top}
+                      cropRight={crop.right}
+                      cropBottom={crop.bottom}
+                      cropLeft={crop.left}
+                      onRemove={() => removeImage(img.id)}
+                      status={img.status}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Empty state */}
-          {images.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 gap-2">
-              <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                No images loaded yet. Upload some files to get started.
-              </p>
+          </div>
+        ) : (
+          /* ── EMPTY STATE: centered drop zone ── */
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-61px)] p-8 gap-6">
+            <div
+              className={`drop-zone w-full max-w-xl rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${isDragging ? "active" : ""}`}
+              style={{ minHeight: 280 }}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center"
+                style={{
+                  background: isDragging ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+                  border: "1px solid hsl(var(--border))",
+                }}
+              >
+                <Upload
+                  size={20}
+                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                />
+              </div>
+              <div className="text-center">
+                <p
+                  className="text-sm font-medium"
+                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--foreground))" }}
+                >
+                  {isDragging ? "Drop images here" : "Drop images or click to browse"}
+                </p>
+                <p className="label-mono mt-1">JPG · PNG · WEBP · GIF</p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && addFiles(e.target.files)}
+              />
             </div>
-          )}
-        </main>
+          </div>
+        )}
       </div>
     </div>
   );
