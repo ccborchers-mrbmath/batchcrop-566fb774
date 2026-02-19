@@ -44,17 +44,19 @@ export default function Index() {
 
     setImages((prev) => {
       const wasEmpty = prev.length === 0;
-      const next = [...prev, ...entries];
-      // Measure the first image natural size when first image is added
+      // Measure the first image's natural size using a SEPARATE object URL
+      // so we don't revoke the one used for display
       if (wasEmpty && entries.length > 0) {
+        const measureUrl = URL.createObjectURL(entries[0].file);
         const img = new Image();
         img.onload = () => {
           setFirstImageNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
-          URL.revokeObjectURL(img.src);
+          URL.revokeObjectURL(measureUrl);
         };
-        img.src = entries[0].previewUrl;
+        img.onerror = () => URL.revokeObjectURL(measureUrl);
+        img.src = measureUrl;
       }
-      return next;
+      return [...prev, ...entries];
     });
   }, []);
 
