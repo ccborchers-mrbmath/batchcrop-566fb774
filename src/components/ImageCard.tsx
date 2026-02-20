@@ -14,6 +14,7 @@ interface ImageCardProps {
   onSelect: () => void;
   isSelected: boolean;
   status: "idle" | "processing" | "done" | "error";
+  regionCount?: number;
 }
 
 export function ImageCard({
@@ -29,7 +30,9 @@ export function ImageCard({
   onSelect,
   isSelected,
   status,
+  regionCount = 0,
 }: ImageCardProps) {
+
   const sizeKB = (file.size / 1024).toFixed(0);
   const imgRef = useRef<HTMLImageElement>(null);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
@@ -82,8 +85,24 @@ export function ImageCard({
         <X size={12} />
       </button>
 
+      {/* Region count badge */}
+      {regionCount > 0 && (
+        <div
+          className="absolute bottom-2 left-2 z-10 px-1.5 py-0.5 rounded text-xs font-semibold"
+          style={{
+            background: "hsl(120 70% 55% / 0.2)",
+            border: "1px solid hsl(120 70% 55% / 0.4)",
+            color: "hsl(120 70% 55%)",
+            fontSize: "0.6rem",
+          }}
+        >
+          {regionCount}R
+        </div>
+      )}
+
       {/* Status badge */}
       {status !== "idle" && (
+
         <div
           className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-xs font-medium"
           style={{

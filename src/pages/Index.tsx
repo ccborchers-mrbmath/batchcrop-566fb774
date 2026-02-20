@@ -1,21 +1,25 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
 import { CropPreviewEditor } from "@/components/CropPreviewEditor";
+import { RegionEditor } from "@/components/RegionEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
-import { cropImageFile, croppedFileName, CropValues } from "@/lib/cropImage";
+import { CropControls } from "@/components/CropControls";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
+type SidebarTab = "batch" | "image";
 
 interface ImageEntry {
   id: string;
   file: File;
   previewUrl: string;
   status: FileStatus;
+  regions: Region[];
 }
 
 export default function Index() {
@@ -27,6 +31,7 @@ export default function Index() {
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("batch");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,7 +40,6 @@ export default function Index() {
     };
   }, []);
 
-  /** Register image File objects as entries and measure their dimensions. */
   const addImageFiles = useCallback((imageFiles: File[], selectFirst = false) => {
     if (!imageFiles.length) return;
 
@@ -44,6 +48,7 @@ export default function Index() {
       file,
       previewUrl: URL.createObjectURL(file),
       status: "idle",
+      regions: [],
     }));
 
     setImages((prev) => {
@@ -62,9 +67,7 @@ export default function Index() {
                 const allIds = current.map((im) => im.id);
                 const allSizes: Record<string, { w: number; h: number }> = {};
                 allIds.forEach((id) => { if (next[id]) allSizes[id] = next[id]; });
-                if (hasMixedDimensions(allSizes)) {
-                  setShowNormalizeDialog(true);
-                }
+                if (hasMixedDimensions(allSizes)) setShowNormalizeDialog(true);
                 return current;
               });
             }
@@ -80,17 +83,14 @@ export default function Index() {
     });
   }, []);
 
-  /** Handle any mix of image and PDF files dropped or selected. */
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files);
     const imageFiles = arr.filter((f) => f.type.startsWith("image/"));
     const pdfFiles = arr.filter((f) => f.type === "application/pdf");
 
-    // Add plain images immediately
     const isFirstBatch = imageFiles.length > 0;
     addImageFiles(imageFiles, true);
 
-    // Convert each PDF sequentially, showing progress
     for (const pdf of pdfFiles) {
       setPdfProgress({ done: 0, total: 0, name: pdf.name });
       try {
@@ -108,36 +108,24 @@ export default function Index() {
     }
   }, [addImageFiles]);
 
-  /** Stretch every image in the batch that doesn't match the chosen preset. */
   const handleNormalize = useCallback(async (preset: AspectPreset) => {
-    setImages((prev) =>
-      prev.map((img) => ({ ...img, status: "processing" as const }))
-    );
+    setImages((prev) => prev.map((img) => ({ ...img, status: "processing" as const })));
 
     const updated = await Promise.all(
       images.map(async (entry) => {
         const size = naturalSizes[entry.id];
-        if (size && size.w === preset.w && size.h === preset.h) {
-          // Already the right size — nothing to do
-          return entry;
-        }
+        if (size && size.w === preset.w && size.h === preset.h) return entry;
         try {
           const blob = await stretchImageToSize(entry.file, preset.w, preset.h);
           const newFile = new File([blob], entry.file.name, { type: entry.file.type });
           URL.revokeObjectURL(entry.previewUrl);
-          return {
-            ...entry,
-            file: newFile,
-            previewUrl: URL.createObjectURL(blob),
-            status: "idle" as const,
-          };
+          return { ...entry, file: newFile, previewUrl: URL.createObjectURL(blob), status: "idle" as const };
         } catch {
           return { ...entry, status: "idle" as const };
         }
       })
     );
 
-    // Update natural sizes to the preset dimensions for all entries
     const newSizes: Record<string, { w: number; h: number }> = {};
     updated.forEach((e) => { newSizes[e.id] = { w: preset.w, h: preset.h }; });
 
@@ -155,11 +143,7 @@ export default function Index() {
     [addFiles]
   );
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
 
   const removeImage = (id: string) => {
@@ -167,12 +151,8 @@ export default function Index() {
       const entry = prev.find((img) => img.id === id);
       if (entry) URL.revokeObjectURL(entry.previewUrl);
       const next = prev.filter((img) => img.id !== id);
-      // If the removed image was selected, select the first remaining
-      if (id === selectedId && next.length > 0) {
-        setSelectedId(next[0].id);
-      } else if (next.length === 0) {
-        setSelectedId(null);
-      }
+      if (id === selectedId && next.length > 0) setSelectedId(next[0].id);
+      else if (next.length === 0) setSelectedId(null);
       return next;
     });
   };
@@ -184,32 +164,59 @@ export default function Index() {
     setSelectedId(null);
   };
 
-  const hasCrop =
-    crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
+  const updateRegions = useCallback((id: string, regions: Region[]) => {
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions } : img));
+  }, []);
+
+  const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
 
   const handleCropAndDownload = async () => {
-    if (!images.length || !hasCrop) return;
+    if (!images.length) return;
     setIsProcessing(true);
-
     setImages((prev) => prev.map((img) => ({ ...img, status: "processing" })));
 
     const zip = new JSZip();
     const folder = zip.folder("cropped");
 
+    const updatedStatuses: Record<string, FileStatus> = {};
+
+    // Process each image
     const results = await Promise.allSettled(
       images.map(async (entry) => {
-        const blob = await cropImageFile(entry.file, crop);
-        return { id: entry.id, blob, name: croppedFileName(entry.file.name) };
+        // Step 1: Apply batch crop
+        const croppedBlob = hasCrop
+          ? await cropImageFile(entry.file, crop)
+          : entry.file;
+
+        if (entry.regions.length > 0) {
+          // Extract each region from the batch-cropped result
+          const regionBlobs = await Promise.all(
+            entry.regions.map((r) => extractRegion(croppedBlob, r))
+          );
+          return { id: entry.id, type: "regions" as const, blobs: regionBlobs, file: entry.file };
+        } else {
+          // No regions — just the batch crop
+          return {
+            id: entry.id,
+            type: "single" as const,
+            blob: croppedBlob,
+            name: croppedFileName(entry.file.name),
+          };
+        }
       })
     );
 
-    const updatedStatuses: Record<string, FileStatus> = {};
-
     results.forEach((result, i) => {
       if (result.status === "fulfilled") {
-        const { id, blob, name } = result.value;
-        folder?.file(name, blob);
-        updatedStatuses[id] = "done";
+        const val = result.value;
+        if (val.type === "regions") {
+          val.blobs.forEach((blob, idx) => {
+            folder?.file(regionFileName(val.file.name, idx), blob);
+          });
+        } else {
+          folder?.file(val.name, val.blob);
+        }
+        updatedStatuses[val.id] = "done";
       } else {
         updatedStatuses[images[i].id] = "error";
       }
@@ -219,10 +226,19 @@ export default function Index() {
       prev.map((img) => ({ ...img, status: updatedStatuses[img.id] ?? "error" }))
     );
 
+    // Single image single region — skip zip
     if (images.length === 1) {
       const result = results[0];
       if (result.status === "fulfilled") {
-        saveAs(result.value.blob, result.value.name);
+        const val = result.value;
+        if (val.type === "regions" && val.blobs.length === 1) {
+          saveAs(val.blobs[0], regionFileName(val.file.name, 0));
+        } else if (val.type === "single") {
+          saveAs(val.blob, val.name);
+        } else {
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+          saveAs(zipBlob, "cropped_images.zip");
+        }
       }
     } else {
       const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -230,7 +246,6 @@ export default function Index() {
     }
 
     setIsProcessing(false);
-
     setTimeout(() => {
       setImages((prev) => prev.map((img) => ({ ...img, status: "idle" })));
     }, 3000);
@@ -239,9 +254,23 @@ export default function Index() {
   const selectedEntry = images.find((i) => i.id === selectedId);
   const selectedSize = selectedId ? naturalSizes[selectedId] : null;
 
+  // Compute cropped dimensions for the region editor
+  const croppedW = selectedSize ? Math.max(1, selectedSize.w - crop.left - crop.right) : 0;
+  const croppedH = selectedSize ? Math.max(1, selectedSize.h - crop.top - crop.bottom) : 0;
+
+  const totalRegions = images.reduce((acc, img) => acc + img.regions.length, 0);
+  const imagesWithRegions = images.filter((img) => img.regions.length > 0).length;
+
+  const downloadLabel = () => {
+    if (isProcessing) return "Processing…";
+    if (!hasCrop && totalRegions === 0) return images.length > 1 ? `Download ZIP (${images.length})` : "Download";
+    if (images.length > 1) return `Crop & Download ZIP (${images.length})`;
+    return "Crop & Download";
+  };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(var(--background))" }}>
-      {/* PDF conversion progress overlay */}
+      {/* PDF progress overlay */}
       {pdfProgress && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -260,10 +289,7 @@ export default function Index() {
             <p className="label-mono text-center" style={{ maxWidth: 240 }}>{pdfProgress.name}</p>
             {pdfProgress.total > 0 && (
               <>
-                <div
-                  className="w-full h-1.5 rounded-full overflow-hidden"
-                  style={{ background: "hsl(var(--muted))" }}
-                >
+                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--muted))" }}>
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
@@ -272,14 +298,13 @@ export default function Index() {
                     }}
                   />
                 </div>
-                <span className="label-mono">
-                  Page {pdfProgress.done} / {pdfProgress.total}
-                </span>
+                <span className="label-mono">Page {pdfProgress.done} / {pdfProgress.total}</span>
               </>
             )}
           </div>
         </div>
       )}
+
       {showNormalizeDialog && (
         <NormalizeDialog
           sizes={naturalSizes}
@@ -303,115 +328,259 @@ export default function Index() {
           <h1 className="text-sm font-semibold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
             BatchCrop
           </h1>
-          <p className="label-mono" style={{ marginTop: 1 }}>
-            pixel-perfect edge cropping
-          </p>
+          <p className="label-mono" style={{ marginTop: 1 }}>pixel-perfect edge cropping</p>
         </div>
 
         {images.length > 0 && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={clearAll}
-              className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
-            >
+            <button onClick={clearAll} className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2">
               <Trash2 size={13} />
               Clear all
             </button>
             <button
               onClick={handleCropAndDownload}
-              disabled={!hasCrop || isProcessing}
+              disabled={(!hasCrop && totalRegions === 0) || isProcessing}
               className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2"
             >
               <Download size={13} />
-              {isProcessing
-                ? "Processing…"
-                : images.length > 1
-                ? `Crop & Download ZIP (${images.length})`
-                : "Crop & Download"}
+              {downloadLabel()}
             </button>
           </div>
         )}
       </header>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden flex">
         {images.length > 0 && selectedEntry && selectedSize ? (
-          <div className="flex flex-col">
-            {/* Full-width crop preview */}
-            <div
-              className="border-b px-6 py-5"
-              style={{ borderColor: "hsl(var(--border))" }}
+          <>
+            {/* ── LEFT SIDEBAR ── */}
+            <aside
+              className="w-72 shrink-0 border-r flex flex-col overflow-y-auto"
+              style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
             >
-              <CropPreviewEditor
-                imageUrl={selectedEntry.previewUrl}
-                imageName={selectedEntry.file.name}
-                naturalWidth={selectedSize.w}
-                naturalHeight={selectedSize.h}
-                crop={crop}
-                onChange={setCrop}
-              />
-            </div>
-
-            {/* Drop zone (compact) + image grid */}
-            <div className="p-6 space-y-5">
+              {/* Tab bar */}
               <div
-                className={`drop-zone rounded-lg flex items-center justify-center gap-3 cursor-pointer transition-all px-4 ${isDragging ? "active" : ""}`}
-                style={{ minHeight: 72 }}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
+                className="flex border-b shrink-0"
+                style={{ borderColor: "hsl(var(--border))" }}
               >
-                <Upload
-                  size={15}
-                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
-                />
-                <p
-                  className="text-sm"
-                  style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                <button
+                  onClick={() => setSidebarTab("batch")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${
+                    sidebarTab === "batch" ? "border-b-2" : ""
+                  }`}
+                  style={{
+                    borderColor: sidebarTab === "batch" ? "hsl(var(--primary))" : "transparent",
+                    color: sidebarTab === "batch" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                  }}
                 >
-                  {isDragging ? "Drop files here" : "Add more images or PDFs"}
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && addFiles(e.target.files)}
-                />
+                  <Layers size={13} />
+                  Batch Tools
+                </button>
+                <button
+                  onClick={() => setSidebarTab("image")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 text-xs font-medium transition-colors ${
+                    sidebarTab === "image" ? "border-b-2" : ""
+                  }`}
+                  style={{
+                    borderColor: sidebarTab === "image" ? "hsl(var(--primary))" : "transparent",
+                    color: sidebarTab === "image" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  <ImageIcon size={13} />
+                  Image Tools
+                  {selectedEntry.regions.length > 0 && (
+                    <span
+                      className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-semibold"
+                      style={{
+                        background: "hsl(120 70% 55% / 0.2)",
+                        color: "hsl(120 70% 55%)",
+                        fontSize: "0.6rem",
+                      }}
+                    >
+                      {selectedEntry.regions.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
-              <div>
-                <p className="label-mono mb-3">
-                  {images.length} image{images.length !== 1 ? "s" : ""} loaded
-                </p>
-                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
-                  {images.map((img) => (
-                    <ImageCard
-                      key={img.id}
-                      file={img.file}
-                      previewUrl={img.previewUrl}
-                      naturalWidth={naturalSizes[img.id]?.w ?? 0}
-                      naturalHeight={naturalSizes[img.id]?.h ?? 0}
-                      cropTop={crop.top}
-                      cropRight={crop.right}
-                      cropBottom={crop.bottom}
-                      cropLeft={crop.left}
-                      onRemove={() => removeImage(img.id)}
-                      onSelect={() => setSelectedId(img.id)}
-                      isSelected={img.id === selectedId}
-                      status={img.status}
-                    />
-                  ))}
+              {/* Tab content */}
+              <div className="flex-1 p-5 overflow-y-auto">
+                {sidebarTab === "batch" ? (
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <p className="label-mono mb-4">Apply to all {images.length} image{images.length !== 1 ? "s" : ""}</p>
+                      <CropControls values={crop} onChange={setCrop} />
+                    </div>
+
+                    {imagesWithRegions > 0 && (
+                      <div
+                        className="rounded-lg px-3 py-2.5 text-xs"
+                        style={{
+                          background: "hsl(120 70% 55% / 0.08)",
+                          border: "1px solid hsl(120 70% 55% / 0.25)",
+                          color: "hsl(120 70% 55%)",
+                        }}
+                      >
+                        <span className="font-semibold">{imagesWithRegions} image{imagesWithRegions !== 1 ? "s" : ""}</span> ha{imagesWithRegions !== 1 ? "ve" : "s"} individual regions — those will download as region files only.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="label-mono">
+                      Regions for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
+                    </p>
+                    {selectedEntry.regions.length > 0 && (
+                      <div
+                        className="rounded px-3 py-2 text-xs"
+                        style={{
+                          background: "hsl(120 70% 55% / 0.08)",
+                          border: "1px solid hsl(120 70% 55% / 0.25)",
+                          color: "hsl(120 70% 55%)",
+                        }}
+                      >
+                        {selectedEntry.regions.length} region{selectedEntry.regions.length !== 1 ? "s" : ""} drawn — batch crop will NOT be downloaded for this image.
+                      </div>
+                    )}
+
+                    {/* Region list (compact) */}
+                    {selectedEntry.regions.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        {selectedEntry.regions.map((r, i) => (
+                          <div
+                            key={r.id}
+                            className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs"
+                            style={{
+                              background: "hsl(var(--muted))",
+                              border: "1px solid hsl(var(--border))",
+                            }}
+                          >
+                            <span className="font-medium" style={{ color: "hsl(120 70% 55%)" }}>R{i + 1}</span>
+                            <span className="label-mono">{r.w}×{r.h}px</span>
+                            <button
+                              onClick={() =>
+                                updateRegions(
+                                  selectedEntry.id,
+                                  selectedEntry.regions.filter((x) => x.id !== r.id)
+                                )
+                              }
+                              className="opacity-60 hover:opacity-100 transition-opacity"
+                              style={{ color: "hsl(var(--destructive))" }}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => updateRegions(selectedEntry.id, [])}
+                          className="label-mono hover:text-primary transition-colors text-left mt-1"
+                          style={{ color: "hsl(var(--muted-foreground))" }}
+                        >
+                          Clear all regions
+                        </button>
+                      </div>
+                    )}
+                    {selectedEntry.regions.length === 0 && (
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        No regions yet. Use the preview to click &amp; drag a rectangle on the image.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            {/* ── MAIN CONTENT ── */}
+            <div className="flex-1 flex flex-col overflow-y-auto min-w-0">
+              {/* Preview panel */}
+              <div
+                className="border-b px-6 py-5"
+                style={{ borderColor: "hsl(var(--border))" }}
+              >
+                {sidebarTab === "batch" ? (
+                  <CropPreviewEditor
+                    imageUrl={selectedEntry.previewUrl}
+                    imageName={selectedEntry.file.name}
+                    naturalWidth={selectedSize.w}
+                    naturalHeight={selectedSize.h}
+                    crop={crop}
+                    onChange={setCrop}
+                  />
+                ) : (
+                  <RegionEditor
+                    imageUrl={selectedEntry.previewUrl}
+                    imageName={selectedEntry.file.name}
+                    naturalWidth={selectedSize.w}
+                    naturalHeight={selectedSize.h}
+                    croppedWidth={croppedW}
+                    croppedHeight={croppedH}
+                    regions={selectedEntry.regions}
+                    onChange={(r) => updateRegions(selectedEntry.id, r)}
+                  />
+                )}
+              </div>
+
+              {/* Drop zone + image grid */}
+              <div className="p-6 space-y-5">
+                <div
+                  className={`drop-zone rounded-lg flex items-center justify-center gap-3 cursor-pointer transition-all px-4 ${isDragging ? "active" : ""}`}
+                  style={{ minHeight: 72 }}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload
+                    size={15}
+                    style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+                  />
+                  <p className="text-sm" style={{ color: isDragging ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                    {isDragging ? "Drop files here" : "Add more images or PDFs"}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => e.target.files && addFiles(e.target.files)}
+                  />
+                </div>
+
+                <div>
+                  <p className="label-mono mb-3">
+                    {images.length} image{images.length !== 1 ? "s" : ""} loaded
+                  </p>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}>
+                    {images.map((img) => (
+                      <ImageCard
+                        key={img.id}
+                        file={img.file}
+                        previewUrl={img.previewUrl}
+                        naturalWidth={naturalSizes[img.id]?.w ?? 0}
+                        naturalHeight={naturalSizes[img.id]?.h ?? 0}
+                        cropTop={crop.top}
+                        cropRight={crop.right}
+                        cropBottom={crop.bottom}
+                        cropLeft={crop.left}
+                        onRemove={() => removeImage(img.id)}
+                        onSelect={() => {
+                          setSelectedId(img.id);
+                          if (img.regions.length > 0) setSidebarTab("image");
+                        }}
+                        isSelected={img.id === selectedId}
+                        status={img.status}
+                        regionCount={img.regions.length}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </>
         ) : (
-          /* ── EMPTY STATE: centered drop zone ── */
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-61px)] p-8 gap-8">
-            {/* Hero copy */}
+          /* ── EMPTY STATE ── */
+          <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
             <div className="text-center max-w-lg">
               <h2 className="text-2xl font-semibold tracking-tight mb-3" style={{ color: "hsl(var(--foreground))" }}>
                 Crop dozens of images in seconds
@@ -426,6 +595,7 @@ export default function Index() {
                 {[
                   "Batch-crop entire PDF documents",
                   "Pixel-precise edge control",
+                  "Draw individual regions per image",
                   "Works offline — no uploads to a server",
                   "Free, no sign-up required",
                 ].map((point) => (
