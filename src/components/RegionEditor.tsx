@@ -136,8 +136,12 @@ export function RegionEditor({
         e.clientY >= rect.top  && e.clientY <= rect.bottom;
 
       if (inside) {
+        // Start drawing a region; panning will still work via onPanMouseDown
+        // attached to the container for the zoomed-out-of-image area
         onMouseDown(e);
-      } else if (zoom.scale > 1) {
+      }
+      // Always allow pan when zoomed, regardless of where the click lands
+      if (zoom.scale > 1) {
         onPanMouseDown(e);
       }
     },
@@ -313,7 +317,10 @@ export function RegionEditor({
       <div
         ref={containerRef}
         className="relative select-none overflow-hidden rounded"
-        style={{ border: "1px solid hsl(var(--border))", cursor: "crosshair" }}
+        style={{
+          border: "1px solid hsl(var(--border))",
+          cursor: zoom.scale > 1 ? "grab" : "crosshair",
+        }}
         onMouseDown={onContainerMouseDown}
       >
         {/* Zoomed inner wrapper */}
