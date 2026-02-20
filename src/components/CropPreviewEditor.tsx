@@ -1,5 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { CropValues } from "@/lib/cropImage";
+import { useZoom } from "@/hooks/useZoom";
+import { ZoomControls } from "@/components/ZoomControls";
 
 interface CropPreviewEditorProps {
   imageUrl: string;
@@ -28,8 +30,10 @@ export function CropPreviewEditor({
   const startCrop = useRef<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
 
-  // Track the rendered image size so we can convert pixels accurately
   const imgRef = useRef<HTMLImageElement>(null);
+
+  const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
+    useZoom(containerRef as React.RefObject<HTMLElement>);
 
   const updateDisplaySize = useCallback(() => {
     const img = imgRef.current;
@@ -37,8 +41,6 @@ export function CropPreviewEditor({
     setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
   }, []);
 
-  // Reset display size when image changes so stale dimensions don't corrupt
-  // the scale factors before the new image fires its onLoad event.
   useEffect(() => {
     setDisplaySize({ w: 0, h: 0 });
   }, [imageUrl]);
@@ -53,12 +55,12 @@ export function CropPreviewEditor({
   const scaleX = displaySize.w > 0 ? naturalWidth / displaySize.w : 1;
   const scaleY = displaySize.h > 0 ? naturalHeight / displaySize.h : 1;
 
-  // Clamp so opposite edges don't overlap (leave at least 1 real px in the middle)
   const clamp = (value: number) => Math.max(0, Math.round(value));
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent, edge: DragEdge) => {
       e.preventDefault();
+      e.stopPropagation(); // don't trigger pan
       dragging.current = edge;
       startPos.current = { x: e.clientX, y: e.clientY };
       startCrop.current = { ...crop };
@@ -69,32 +71,28 @@ export function CropPreviewEditor({
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragging.current || !displaySize.w || !displaySize.h) return;
-      const dx = e.clientX - startPos.current.x;
-      const dy = e.clientY - startPos.current.y;
+      // Adjust for zoom scale — mouse delta is in screen px, image is scaled up
+      const dx = (e.clientX - startPos.current.x) / zoom.scale;
+      const dy = (e.clientY - startPos.current.y) / zoom.scale;
       const edge = dragging.current;
       const next = { ...startCrop.current };
 
       if (edge === "top") {
         const realDelta = dy * scaleY;
         next.top = clamp(startCrop.current.top + realDelta);
-        // prevent overlap
-        const maxTop = naturalHeight - next.bottom - 1;
-        next.top = Math.min(next.top, maxTop);
+        next.top = Math.min(next.top, naturalHeight - next.bottom - 1);
       } else if (edge === "bottom") {
         const realDelta = -dy * scaleY;
         next.bottom = clamp(startCrop.current.bottom + realDelta);
-        const maxBottom = naturalHeight - next.top - 1;
-        next.bottom = Math.min(next.bottom, maxBottom);
+        next.bottom = Math.min(next.bottom, naturalHeight - next.top - 1);
       } else if (edge === "left") {
         const realDelta = dx * scaleX;
         next.left = clamp(startCrop.current.left + realDelta);
-        const maxLeft = naturalWidth - next.right - 1;
-        next.left = Math.min(next.left, maxLeft);
+        next.left = Math.min(next.left, naturalWidth - next.right - 1);
       } else if (edge === "right") {
         const realDelta = -dx * scaleX;
         next.right = clamp(startCrop.current.right + realDelta);
-        const maxRight = naturalWidth - next.left - 1;
-        next.right = Math.min(next.right, maxRight);
+        next.right = Math.min(next.right, naturalWidth - next.left - 1);
       }
 
       onChange(next);
@@ -110,7 +108,7 @@ export function CropPreviewEditor({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [scaleX, scaleY, naturalWidth, naturalHeight, onChange, displaySize]);
+  }, [scaleX, scaleY, naturalWidth, naturalHeight, onChange, displaySize, zoom.scale]);
 
   // Convert real pixel crop values to display pixel positions
   const topPx = displaySize.h > 0 ? (crop.top / naturalHeight) * displaySize.h : 0;
@@ -128,108 +126,119 @@ export function CropPreviewEditor({
       {/* Header row */}
       <div className="flex items-center justify-between">
         <p className="label-mono">Crop Preview — drag edges to set crop</p>
-        {hasCrop && (
-          <button
-            className="label-mono hover:text-primary transition-colors"
-            style={{ color: "hsl(var(--muted-foreground))" }}
-            onClick={() => onChange({ top: 0, right: 0, bottom: 0, left: 0 })}
-          >
-            Reset
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <ZoomControls
+            scale={zoom.scale}
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onReset={reset}
+            onSliderChange={(v) => setScale(v)}
+          />
+          {hasCrop && (
+            <button
+              className="label-mono hover:text-primary transition-colors"
+              style={{ color: "hsl(var(--muted-foreground))" }}
+              onClick={() => onChange({ top: 0, right: 0, bottom: 0, left: 0 })}
+            >
+              Reset crop
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Image + readout side by side */}
       <div className="flex gap-4 items-start">
-        {/* Image container — grows to fill available width */}
+        {/* Image container */}
         <div
           ref={containerRef}
           className="relative select-none overflow-hidden rounded flex-1 min-w-0"
-          style={{ border: "1px solid hsl(var(--border))" }}
+          style={{
+            border: "1px solid hsl(var(--border))",
+            cursor: zoom.scale > 1 ? "grab" : "default",
+          }}
+          onMouseDown={onPanMouseDown}
         >
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt={imageName}
-          draggable={false}
-          className="block w-full"
-          onLoad={updateDisplaySize}
-          style={{ display: "block" }}
-        />
-
-        {/* Crop shadow overlays */}
-        {/* Top */}
-        <div
-          className="absolute left-0 right-0 top-0 pointer-events-none"
-          style={{ height: topPx, background: overlayColor, borderBottom: `1px solid ${handleColor}` }}
-        />
-        {/* Bottom */}
-        <div
-          className="absolute left-0 right-0 bottom-0 pointer-events-none"
-          style={{ height: bottomPx, background: overlayColor, borderTop: `1px solid ${handleColor}` }}
-        />
-        {/* Left */}
-        <div
-          className="absolute top-0 bottom-0 left-0 pointer-events-none"
-          style={{ width: leftPx, background: overlayColor, borderRight: `1px solid ${handleColor}` }}
-        />
-        {/* Right */}
-        <div
-          className="absolute top-0 bottom-0 right-0 pointer-events-none"
-          style={{ width: rightPx, background: overlayColor, borderLeft: `1px solid ${handleColor}` }}
-        />
-
-        {/* Draggable handles — inlined divs, no component to avoid ref warnings */}
-        {/* Top handle */}
-        <div
-          className="absolute z-10"
-          style={{ top: topPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
-          onMouseDown={(e) => onMouseDown(e, "top")}
-        />
-        {/* Bottom handle */}
-        <div
-          className="absolute z-10"
-          style={{ bottom: bottomPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
-          onMouseDown={(e) => onMouseDown(e, "bottom")}
-        />
-        {/* Left handle */}
-        <div
-          className="absolute z-10"
-          style={{ left: leftPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
-          onMouseDown={(e) => onMouseDown(e, "left")}
-        />
-        {/* Right handle */}
-        <div
-          className="absolute z-10"
-          style={{ right: rightPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
-          onMouseDown={(e) => onMouseDown(e, "right")}
-        />
-
-        {/* Drag-to-crop hint when no crop set */}
-        {!hasCrop && (
+          {/* Zoomed inner wrapper */}
           <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{
+              transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
+              transformOrigin: "center center",
+              willChange: "transform",
+            }}
           >
-            <p
-              className="label-mono text-center px-3 py-1.5 rounded"
-              style={{
-                background: "hsl(var(--background) / 0.75)",
-                color: "hsl(var(--muted-foreground))",
-              }}
-            >
-              Drag the edges to set crop
-            </p>
-          </div>
-        )}
-        </div>{/* end image container */}
+            <img
+              ref={imgRef}
+              src={imageUrl}
+              alt={imageName}
+              draggable={false}
+              className="block w-full"
+              onLoad={updateDisplaySize}
+              style={{ display: "block" }}
+            />
 
-        {/* Pixel inputs — editable, stacked beside the image */}
+            {/* Crop shadow overlays */}
+            <div
+              className="absolute left-0 right-0 top-0 pointer-events-none"
+              style={{ height: topPx, background: overlayColor, borderBottom: `1px solid ${handleColor}` }}
+            />
+            <div
+              className="absolute left-0 right-0 bottom-0 pointer-events-none"
+              style={{ height: bottomPx, background: overlayColor, borderTop: `1px solid ${handleColor}` }}
+            />
+            <div
+              className="absolute top-0 bottom-0 left-0 pointer-events-none"
+              style={{ width: leftPx, background: overlayColor, borderRight: `1px solid ${handleColor}` }}
+            />
+            <div
+              className="absolute top-0 bottom-0 right-0 pointer-events-none"
+              style={{ width: rightPx, background: overlayColor, borderLeft: `1px solid ${handleColor}` }}
+            />
+
+            {/* Draggable handles */}
+            <div
+              className="absolute z-10"
+              style={{ top: topPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
+              onMouseDown={(e) => onMouseDown(e, "top")}
+            />
+            <div
+              className="absolute z-10"
+              style={{ bottom: bottomPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
+              onMouseDown={(e) => onMouseDown(e, "bottom")}
+            />
+            <div
+              className="absolute z-10"
+              style={{ left: leftPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
+              onMouseDown={(e) => onMouseDown(e, "left")}
+            />
+            <div
+              className="absolute z-10"
+              style={{ right: rightPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
+              onMouseDown={(e) => onMouseDown(e, "right")}
+            />
+
+            {/* Hint when no crop set */}
+            {!hasCrop && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p
+                  className="label-mono text-center px-3 py-1.5 rounded"
+                  style={{
+                    background: "hsl(var(--background) / 0.75)",
+                    color: "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  Drag the edges to set crop
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pixel inputs */}
         <div className="flex flex-col gap-1.5 w-32 shrink-0">
           {(["top", "right", "bottom", "left"] as const).map((edge) => (
-            <div
-              key={edge}
-              className="flex flex-col gap-0.5"
-            >
+            <div key={edge} className="flex flex-col gap-0.5">
               <span className="label-mono capitalize">{edge}</span>
               <div
                 className="flex items-center gap-1 px-2 py-1 rounded"
@@ -254,9 +263,7 @@ export function CropPreviewEditor({
             </div>
           ))}
         </div>
-      </div>{/* end flex row */}
+      </div>
     </div>
   );
 }
-
-
