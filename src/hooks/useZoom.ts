@@ -10,7 +10,7 @@ const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 const ZOOM_STEP = 0.25;
 
-export function useZoom(containerRef: React.RefObject<HTMLElement>) {
+export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
   const [zoom, setZoom] = useState<ZoomState>({ scale: 1, offsetX: 0, offsetY: 0 });
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });

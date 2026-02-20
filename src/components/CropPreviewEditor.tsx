@@ -33,7 +33,7 @@ export function CropPreviewEditor({
   const imgRef = useRef<HTMLImageElement>(null);
 
   const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
-    useZoom(containerRef as React.RefObject<HTMLElement>);
+    useZoom(containerRef);
 
   const updateDisplaySize = useCallback(() => {
     const img = imgRef.current;
