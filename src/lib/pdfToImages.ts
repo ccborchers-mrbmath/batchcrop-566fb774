@@ -1,7 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 
 // Point the worker at the bundled worker file served from node_modules via CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs`;
 
 /**
  * Convert every page of a PDF file into PNG Blobs.
