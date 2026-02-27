@@ -523,6 +523,7 @@ export default function Index() {
             config={numberingConfig}
             onConfigChange={setNumberingConfig}
             onImageUpdate={updateNumberedImage}
+            onReorder={(reordered) => setNumberedImages(reordered)}
             onExport={handleNumberedExport}
             onBack={exitNumberingMode}
             isExporting={isNumberExporting}
