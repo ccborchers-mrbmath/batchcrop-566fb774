@@ -76,9 +76,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
     });
   }, [clampOffset]);
 
-  // Scroll wheel handler — call this on the container element
+  // Scroll wheel handler — only zoom when Ctrl is held; otherwise let page scroll
   const onWheel = useCallback(
     (e: WheelEvent) => {
+      if (!e.ctrlKey) return; // allow normal page scroll
       e.preventDefault();
       const delta = -e.deltaY;
       setZoom((prev) => {
