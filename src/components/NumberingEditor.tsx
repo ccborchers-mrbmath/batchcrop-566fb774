@@ -297,10 +297,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       const rect = img.getBoundingClientRect();
       const x = (e.clientX - rect.left - dragOffset.current.x) / rect.width;
       const y = (e.clientY - rect.top - dragOffset.current.y) / rect.height;
-      onUpdate({
-        labelX: Math.max(0, Math.min(0.95, x)),
-        labelY: Math.max(0, Math.min(0.95, y)),
-      });
+      onUpdate({ labelX: x, labelY: y });
     };
     const onUp = () => setDragging(false);
     window.addEventListener("mousemove", onMove);
