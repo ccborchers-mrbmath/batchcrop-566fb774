@@ -375,7 +375,7 @@ export function RegionEditor({
         <div
           style={{
             transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
-            transformOrigin: "center center",
+            transformOrigin: "center top",
             willChange: "transform",
           }}
         >
