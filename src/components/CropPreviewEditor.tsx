@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { CropValues } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
@@ -10,6 +11,7 @@ interface CropPreviewEditorProps {
   naturalHeight: number;
   crop: CropValues;
   onChange: (crop: CropValues) => void;
+  onRemove?: () => void;
 }
 
 type DragEdge = "top" | "right" | "bottom" | "left" | null;
@@ -23,6 +25,7 @@ export function CropPreviewEditor({
   naturalHeight,
   crop,
   onChange,
+  onRemove,
 }: CropPreviewEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<DragEdge>(null);
@@ -125,7 +128,19 @@ export function CropPreviewEditor({
     <div className="flex flex-col gap-3">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <p className="label-mono">Crop Preview — drag edges to set crop</p>
+        <div className="flex items-center gap-2">
+          <p className="label-mono">Crop Preview — drag edges to set crop</p>
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-80"
+              style={{ background: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
+              title="Remove image"
+            >
+              <X size={11} />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <ZoomControls
             scale={zoom.scale}

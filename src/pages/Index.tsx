@@ -148,11 +148,19 @@ export default function Index() {
 
   const removeImage = (id: string) => {
     setImages((prev) => {
-      const entry = prev.find((img) => img.id === id);
+      const idx = prev.findIndex((img) => img.id === id);
+      const entry = idx >= 0 ? prev[idx] : null;
       if (entry) URL.revokeObjectURL(entry.previewUrl);
       const next = prev.filter((img) => img.id !== id);
-      if (id === selectedId && next.length > 0) setSelectedId(next[0].id);
-      else if (next.length === 0) setSelectedId(null);
+      if (id === selectedId) {
+        if (next.length === 0) {
+          setSelectedId(null);
+        } else {
+          // Select the next image in queue (or the last one if we removed the tail)
+          const nextIdx = Math.min(idx, next.length - 1);
+          setSelectedId(next[nextIdx].id);
+        }
+      }
       return next;
     });
   };
@@ -505,6 +513,7 @@ export default function Index() {
                     naturalHeight={selectedSize.h}
                     crop={crop}
                     onChange={setCrop}
+                    onRemove={() => removeImage(selectedEntry.id)}
                   />
                 ) : (
                   <RegionEditor
@@ -516,6 +525,7 @@ export default function Index() {
                     croppedHeight={croppedH}
                     regions={selectedEntry.regions}
                     onChange={(r) => updateRegions(selectedEntry.id, r)}
+                    onRemove={() => removeImage(selectedEntry.id)}
                   />
                 )}
               </div>

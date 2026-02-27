@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { Region } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
@@ -13,6 +13,7 @@ interface RegionEditorProps {
   croppedHeight: number;
   regions: Region[];
   onChange: (regions: Region[]) => void;
+  onRemove?: () => void;
 }
 
 interface DrawState {
@@ -50,6 +51,7 @@ export function RegionEditor({
   croppedHeight,
   regions,
   onChange,
+  onRemove,
 }: RegionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -290,7 +292,19 @@ export function RegionEditor({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="label-mono">Draw regions — click &amp; drag on the image</p>
+        <div className="flex items-center gap-2">
+          <p className="label-mono">Draw regions — click &amp; drag on the image</p>
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-80"
+              style={{ background: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}
+              title="Remove image"
+            >
+              <X size={11} />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <ZoomControls
             scale={zoom.scale}
