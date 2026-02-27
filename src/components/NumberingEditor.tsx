@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Download, Type, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { useZoom } from "@/hooks/useZoom";
+import { ZoomControls } from "@/components/ZoomControls";
 
 export interface NumberedImage {
   id: string;
@@ -349,6 +351,9 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
   const [editingLabel, setEditingLabel] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
+    useZoom(containerRef);
+
   const updateImgSize = useCallback(() => {
     const el = imgRef.current;
     if (el) setImgSize({ w: el.offsetWidth, h: el.offsetHeight });
@@ -368,7 +373,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
   const boxLeft = image.labelX * imgSize.w;
   const boxTop = image.labelY * imgSize.h;
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  const onLabelMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragging(true);
@@ -398,80 +403,103 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
         <p className="label-mono">
           Drag the label to reposition · double-click to edit text
         </p>
-        <p className="label-mono">{image.naturalWidth} × {image.naturalHeight} px</p>
+        <div className="flex items-center gap-3">
+          <ZoomControls
+            scale={zoom.scale}
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onReset={reset}
+            onSliderChange={(v) => setScale(v)}
+          />
+          <p className="label-mono">{image.naturalWidth} × {image.naturalHeight} px</p>
+        </div>
       </div>
       <div
         ref={containerRef}
         className="relative inline-block select-none rounded overflow-hidden"
-        style={{ border: "1px solid hsl(var(--border))" }}
+        style={{
+          border: "1px solid hsl(var(--border))",
+          cursor: zoom.scale > 1 ? "grab" : "default",
+        }}
+        onMouseDown={onPanMouseDown}
       >
-        <img
-          ref={imgRef}
-          src={image.previewUrl}
-          alt=""
-          draggable={false}
-          className="block w-full"
-          onLoad={updateImgSize}
-        />
-        {/* Text box overlay */}
-        {imgSize.w > 0 && image.label && (
-          <div
-            className="absolute flex items-start"
-            style={{
-              left: boxLeft,
-              top: boxTop,
-              cursor: dragging ? "grabbing" : "grab",
-            }}
-            onMouseDown={onMouseDown}
-            onDoubleClick={() => {
-              setEditingLabel(true);
-              setTimeout(() => inputRef.current?.focus(), 50);
-            }}
-          >
+        <div
+          style={{
+            transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
+            transformOrigin: "center top",
+            willChange: "transform",
+          }}
+        >
+          <img
+            ref={imgRef}
+            src={image.previewUrl}
+            alt=""
+            draggable={false}
+            className="block w-full"
+            onLoad={updateImgSize}
+          />
+          {/* Text box overlay */}
+          {imgSize.w > 0 && image.label && (
             <div
+              className="absolute flex items-start"
               style={{
-                background: "#ffffff",
-                padding: `${(config.padding.top / image.naturalWidth) * imgSize.w}px ${(config.padding.right / image.naturalWidth) * imgSize.w}px ${(config.padding.bottom / image.naturalWidth) * imgSize.w}px ${(config.padding.left / image.naturalWidth) * imgSize.w}px`,
-                fontFamily: `"${config.fontFamily}", sans-serif`,
-                fontSize: displayFontSize,
-                lineHeight: 1.25,
-                color: "#000000",
-                fontWeight: config.bold ? 700 : 400,
-                whiteSpace: "nowrap",
-                userSelect: "none",
-                border: "1px dashed hsl(var(--primary) / 0.5)",
+                left: boxLeft,
+                top: boxTop,
+                cursor: dragging ? "grabbing" : "grab",
+              }}
+              onMouseDown={onLabelMouseDown}
+              onDoubleClick={() => {
+                setEditingLabel(true);
+                setTimeout(() => inputRef.current?.focus(), 50);
               }}
             >
-              {editingLabel ? (
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={image.label}
-                  onChange={(e) => onUpdate({ label: e.target.value })}
-                  onBlur={() => setEditingLabel(false)}
-                  onKeyDown={(e) => { if (e.key === "Enter") setEditingLabel(false); }}
-                  className="bg-transparent outline-none border-none p-0 m-0"
-                  style={{
-                    fontFamily: `"${config.fontFamily}", sans-serif`,
-                    fontSize: displayFontSize,
-                    lineHeight: 1.25,
-                    color: "#000000",
-                    width: `${Math.max(2, image.label.length + 1)}ch`,
-                  }}
-                />
-              ) : (
-                <span>
-                  {image.label}
-                  <GripVertical
-                    size={Math.max(10, displayFontSize * 0.6)}
-                    className="inline-block ml-1 opacity-40"
-                    style={{ verticalAlign: "text-bottom" }}
+              <div
+                style={{
+                  background: "#ffffff",
+                  padding: `${(config.padding.top / image.naturalWidth) * imgSize.w}px ${(config.padding.right / image.naturalWidth) * imgSize.w}px ${(config.padding.bottom / image.naturalWidth) * imgSize.w}px ${(config.padding.left / image.naturalWidth) * imgSize.w}px`,
+                  fontFamily: `"${config.fontFamily}", sans-serif`,
+                  fontSize: displayFontSize,
+                  lineHeight: 1.25,
+                  color: "#000000",
+                  fontWeight: config.bold ? 700 : 400,
+                  whiteSpace: "nowrap",
+                  userSelect: "none",
+                  border: "1px dashed hsl(var(--primary) / 0.5)",
+                }}
+              >
+                {editingLabel ? (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={image.label}
+                    onChange={(e) => onUpdate({ label: e.target.value })}
+                    onBlur={() => setEditingLabel(false)}
+                    onKeyDown={(e) => { if (e.key === "Enter") setEditingLabel(false); }}
+                    className="bg-transparent outline-none border-none p-0 m-0"
+                    style={{
+                      fontFamily: `"${config.fontFamily}", sans-serif`,
+                      fontSize: displayFontSize,
+                      lineHeight: 1.25,
+                      color: "#000000",
+                      width: `${Math.max(2, image.label.length + 1)}ch`,
+                    }}
                   />
-                </span>
-              )}
+                ) : (
+                  <span>
+                    {image.label}
+                    <GripVertical
+                      size={Math.max(10, displayFontSize * 0.6)}
+                      className="inline-block ml-1 opacity-40"
+                      style={{ verticalAlign: "text-bottom" }}
+                    />
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
