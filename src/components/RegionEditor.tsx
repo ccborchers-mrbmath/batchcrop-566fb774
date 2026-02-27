@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Region } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
@@ -14,6 +14,10 @@ interface RegionEditorProps {
   regions: Region[];
   onChange: (regions: Region[]) => void;
   onRemove?: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  currentIndex?: number;
+  totalImages?: number;
 }
 
 interface DrawState {
@@ -52,6 +56,10 @@ export function RegionEditor({
   regions,
   onChange,
   onRemove,
+  onPrev,
+  onNext,
+  currentIndex,
+  totalImages,
 }: RegionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -293,6 +301,32 @@ export function RegionEditor({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {/* Prev / Next navigation */}
+          {(onPrev || onNext) && (
+            <div className="flex items-center gap-1 mr-2">
+              <button
+                onClick={onPrev}
+                disabled={!onPrev}
+                className="w-6 h-6 rounded flex items-center justify-center transition-opacity disabled:opacity-25"
+                style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                title="Previous image"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="label-mono tabular-nums" style={{ minWidth: 40, textAlign: "center" }}>
+                {(currentIndex ?? 0) + 1}/{totalImages ?? 0}
+              </span>
+              <button
+                onClick={onNext}
+                disabled={!onNext}
+                className="w-6 h-6 rounded flex items-center justify-center transition-opacity disabled:opacity-25"
+                style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                title="Next image"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
           <p className="label-mono">Draw regions — click &amp; drag on the image</p>
           {onRemove && (
             <button

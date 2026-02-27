@@ -265,7 +265,16 @@ export default function Index() {
   };
 
   const selectedEntry = images.find((i) => i.id === selectedId);
+  const selectedIdx = images.findIndex((i) => i.id === selectedId);
   const selectedSize = selectedId ? naturalSizes[selectedId] : null;
+
+  const goPrev = useCallback(() => {
+    if (selectedIdx > 0) setSelectedId(images[selectedIdx - 1].id);
+  }, [selectedIdx, images]);
+
+  const goNext = useCallback(() => {
+    if (selectedIdx >= 0 && selectedIdx < images.length - 1) setSelectedId(images[selectedIdx + 1].id);
+  }, [selectedIdx, images]);
 
   // Compute cropped dimensions for the region editor
   const croppedW = selectedSize ? Math.max(1, selectedSize.w - crop.left - crop.right) : 0;
@@ -519,6 +528,10 @@ export default function Index() {
                     crop={crop}
                     onChange={setCrop}
                     onRemove={() => removeImage(selectedEntry.id)}
+                    onPrev={selectedIdx > 0 ? goPrev : undefined}
+                    onNext={selectedIdx < images.length - 1 ? goNext : undefined}
+                    currentIndex={selectedIdx}
+                    totalImages={images.length}
                   />
                 ) : (
                   <RegionEditor
@@ -531,6 +544,10 @@ export default function Index() {
                     regions={selectedEntry.regions}
                     onChange={(r) => updateRegions(selectedEntry.id, r)}
                     onRemove={() => removeImage(selectedEntry.id)}
+                    onPrev={selectedIdx > 0 ? goPrev : undefined}
+                    onNext={selectedIdx < images.length - 1 ? goNext : undefined}
+                    currentIndex={selectedIdx}
+                    totalImages={images.length}
                   />
                 )}
               </div>
