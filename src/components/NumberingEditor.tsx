@@ -96,8 +96,14 @@ export function NumberingEditor({
             <input
               type="text"
               value={config.prefix}
-              onChange={(e) => onConfigChange({ ...config, prefix: e.target.value })}
-              placeholder="Q"
+              onChange={(e) => {
+                const newPrefix = e.target.value;
+                onConfigChange({ ...config, prefix: newPrefix });
+                images.forEach((img, i) => {
+                  onImageUpdate(img.id, { label: `${newPrefix}${config.startNumber + i}` });
+                });
+              }}
+              placeholder="e.g. Q"
               className="crop-input w-full px-3 py-2 text-sm"
               style={{ textAlign: "left" }}
             />
@@ -108,7 +114,13 @@ export function NumberingEditor({
               type="number"
               min={0}
               value={config.startNumber}
-              onChange={(e) => onConfigChange({ ...config, startNumber: parseInt(e.target.value) || 0 })}
+              onChange={(e) => {
+                const newStart = parseInt(e.target.value) || 0;
+                onConfigChange({ ...config, startNumber: newStart });
+                images.forEach((img, i) => {
+                  onImageUpdate(img.id, { label: `${config.prefix}${newStart + i}` });
+                });
+              }}
               className="crop-input w-full px-3 py-2 text-sm"
             />
           </div>
