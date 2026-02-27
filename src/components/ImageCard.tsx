@@ -15,6 +15,11 @@ interface ImageCardProps {
   isSelected: boolean;
   status: "idle" | "processing" | "done" | "error";
   regionCount?: number;
+  onDragStart?: () => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isDragOver?: boolean;
 }
 
 export function ImageCard({
@@ -31,6 +36,11 @@ export function ImageCard({
   isSelected,
   status,
   regionCount = 0,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDrop,
+  isDragOver = false,
 }: ImageCardProps) {
 
   const sizeKB = (file.size / 1024).toFixed(0);
@@ -68,13 +78,32 @@ export function ImageCard({
 
   return (
     <div
-      className="image-card group relative cursor-pointer"
+      className="image-card group relative cursor-pointer transition-all"
       onClick={onSelect}
-      style={
-        isSelected
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOver?.(e);
+      }}
+      onDragEnd={() => onDragEnd?.()}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop?.(e);
+      }}
+      style={{
+        ...(isSelected
           ? { outline: "2px solid hsl(var(--primary))", outlineOffset: 2 }
-          : undefined
-      }
+          : undefined),
+        ...(isDragOver
+          ? { boxShadow: "inset 0 0 0 2px hsl(var(--primary) / 0.5)" }
+          : undefined),
+        opacity: isDragOver ? 0.7 : 1,
+      }}
     >
       {/* Remove button */}
       <button

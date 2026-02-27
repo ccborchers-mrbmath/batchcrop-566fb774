@@ -32,6 +32,8 @@ export default function Index() {
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("batch");
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -279,6 +281,19 @@ export default function Index() {
   // Compute cropped dimensions for the region editor
   const croppedW = selectedSize ? Math.max(1, selectedSize.w - crop.left - crop.right) : 0;
   const croppedH = selectedSize ? Math.max(1, selectedSize.h - crop.top - crop.bottom) : 0;
+
+  const handleReorder = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setImages((prev) => {
+      const next = [...prev];
+      const fromIdx = next.findIndex((img) => img.id === fromId);
+      const toIdx = next.findIndex((img) => img.id === toId);
+      if (fromIdx < 0 || toIdx < 0) return prev;
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, []);
 
   const totalRegions = images.reduce((acc, img) => acc + img.regions.length, 0);
   const imagesWithRegions = images.filter((img) => img.regions.length > 0).length;
@@ -607,6 +622,15 @@ export default function Index() {
                         isSelected={img.id === selectedId}
                         status={img.status}
                         regionCount={img.regions.length}
+                        onDragStart={() => setDraggedId(img.id)}
+                        onDragOver={() => setDragOverId(img.id)}
+                        onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                        onDrop={() => {
+                          if (draggedId && draggedId !== img.id) handleReorder(draggedId, img.id);
+                          setDraggedId(null);
+                          setDragOverId(null);
+                        }}
+                        isDragOver={dragOverId === img.id && draggedId !== img.id}
                       />
                     ))}
                   </div>
