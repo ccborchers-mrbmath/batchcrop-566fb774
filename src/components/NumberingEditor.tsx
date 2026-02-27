@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, Type, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 
@@ -225,12 +225,15 @@ export function NumberingEditor({
           <button
             onClick={() => {
               const preset = POSITION_PRESETS[config.position];
-              images.forEach((img, i) => {
+              let num = config.startNumber;
+              images.forEach((img) => {
+                if (img.label === "") return; // skip unlabeled images
                 onImageUpdate(img.id, {
-                  label: `${config.prefix}${config.startNumber + i}`,
+                  label: `${config.prefix}${num}`,
                   labelX: preset.x,
                   labelY: preset.y,
                 });
+                num++;
               });
             }}
             className="btn-primary px-3 py-2 text-sm w-full"
@@ -279,6 +282,28 @@ export function NumberingEditor({
                     style={{ border: "1px solid hsl(var(--border))" }}
                   />
                   <span className="font-medium truncate flex-1">{img.label || `(no label)`}</span>
+                  {img.label && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onImageUpdate(img.id, { label: "" });
+                        // Renumber remaining labeled images
+                        let num = config.startNumber;
+                        images.forEach((other) => {
+                          if (other.id === img.id) return; // skip the one being cleared
+                          if (other.label) {
+                            onImageUpdate(other.id, { label: `${config.prefix}${num}` });
+                            num++;
+                          }
+                        });
+                      }}
+                      className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
+                      title="Remove label"
+                    >
+                      <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                    </button>
+                  )}
                 </button>
               ))}
             </div>
