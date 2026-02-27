@@ -374,12 +374,12 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
                 />
               ) : (
                 <span>
+                  {image.label}
                   <GripVertical
                     size={Math.max(10, displayFontSize * 0.6)}
-                    className="inline-block mr-1 opacity-40"
+                    className="inline-block ml-1 opacity-40"
                     style={{ verticalAlign: "text-bottom" }}
                   />
-                  {image.label}
                 </span>
               )}
             </div>
