@@ -235,7 +235,7 @@ export function NumberingEditor({
             }}
             className="btn-primary px-3 py-2 text-sm w-full"
           >
-            Apply Numbering to All
+            Refresh Numbering
           </button>
 
           {/* Thumbnail list */}
