@@ -8,6 +8,7 @@ export interface TextOverlay {
   y: number; // fraction 0–1 of image height (top edge of box)
   fontFamily: string;
   fontSize: number; // in px, relative to the image's real pixel dimensions
+  bold?: boolean;
 }
 
 export async function burnTextOntoImage(
@@ -31,7 +32,8 @@ export async function burnTextOntoImage(
 
       // Configure text
       const fontPx = overlay.fontSize;
-      ctx.font = `${fontPx}px "${overlay.fontFamily}", sans-serif`;
+      const weight = overlay.bold ? "bold" : "normal";
+      ctx.font = `${weight} ${fontPx}px "${overlay.fontFamily}", sans-serif`;
       ctx.textBaseline = "top";
 
       const px = overlay.x * canvas.width;

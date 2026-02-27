@@ -43,6 +43,7 @@ export default function Index() {
     startNumber: 1,
     fontFamily: "Times New Roman",
     fontSize: 28,
+    bold: false,
     position: "top-left",
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
@@ -376,6 +377,7 @@ export default function Index() {
               y: img.labelY,
               fontFamily: numberingConfig.fontFamily,
               fontSize: numberingConfig.fontSize,
+              bold: numberingConfig.bold,
             });
             console.log(`Burn succeeded, blob size: ${blob.size}`);
           } catch (err) {

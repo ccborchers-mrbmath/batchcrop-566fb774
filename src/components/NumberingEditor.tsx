@@ -18,6 +18,7 @@ export interface NumberingConfig {
   startNumber: number;
   fontFamily: string;
   fontSize: number; // px relative to image real pixels
+  bold: boolean;
   position: "top-left" | "top-center" | "top-right";
 }
 
@@ -151,6 +152,18 @@ export function NumberingEditor({
               onChange={(e) => onConfigChange({ ...config, fontSize: Math.max(8, parseInt(e.target.value) || 24) })}
               className="crop-input w-full px-3 py-2 text-sm"
             />
+          </div>
+
+          {/* Bold toggle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="bold-toggle"
+              checked={config.bold}
+              onChange={(e) => onConfigChange({ ...config, bold: e.target.checked })}
+              className="accent-[hsl(var(--primary))]"
+            />
+            <label htmlFor="bold-toggle" className="label-mono cursor-pointer">Bold</label>
           </div>
 
           {/* Default position */}
@@ -349,7 +362,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
                 fontSize: displayFontSize,
                 lineHeight: 1.25,
                 color: "#000000",
-                fontWeight: 400,
+                fontWeight: config.bold ? 700 : 400,
                 whiteSpace: "nowrap",
                 userSelect: "none",
                 border: "1px dashed hsl(var(--primary) / 0.5)",
