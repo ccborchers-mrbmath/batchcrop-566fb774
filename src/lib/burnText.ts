@@ -41,11 +41,12 @@ export async function burnTextOntoImage(
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
       const textH = fontPx * 1.25; // approximate line-height
-      const pad = fontPx * 0.3;
+      const padRight = fontPx * 0.3;
+      const padBottom = fontPx * 0.2;
 
-      // White background
+      // White background — no left/top padding
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px - pad, py - pad, textW + pad * 2, textH + pad * 2);
+      ctx.fillRect(px, py, textW + padRight, textH + padBottom);
 
       // Black text
       ctx.fillStyle = "#000000";

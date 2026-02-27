@@ -344,7 +344,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
             <div
               style={{
                 background: "#ffffff",
-                padding: `${displayFontSize * 0.2}px ${displayFontSize * 0.3}px`,
+                padding: `0 ${displayFontSize * 0.3}px ${displayFontSize * 0.2}px 0`,
                 fontFamily: `"${config.fontFamily}", sans-serif`,
                 fontSize: displayFontSize,
                 lineHeight: 1.25,
