@@ -9,6 +9,7 @@ export interface TextOverlay {
   fontFamily: string;
   fontSize: number; // in px, relative to the image's real pixel dimensions
   bold?: boolean;
+  padding?: { top: number; right: number; bottom: number; left: number }; // px
 }
 
 export async function burnTextOntoImage(
@@ -43,12 +44,14 @@ export async function burnTextOntoImage(
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
       const textH = fontPx * 1.25; // approximate line-height
-      const padRight = fontPx * 0.3;
-      const padBottom = fontPx * 0.2;
+      const padTop = overlay.padding?.top ?? 0;
+      const padRight = overlay.padding?.right ?? 0;
+      const padBottom = overlay.padding?.bottom ?? 0;
+      const padLeft = overlay.padding?.left ?? 0;
 
-      // White background — no left/top padding
+      // White background with configurable padding
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px, py, textW + padRight, textH + padBottom);
+      ctx.fillRect(px - padLeft, py - padTop, padLeft + textW + padRight, padTop + textH + padBottom);
 
       // Black text
       ctx.fillStyle = "#000000";

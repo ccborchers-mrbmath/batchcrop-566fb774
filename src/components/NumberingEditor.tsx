@@ -19,6 +19,7 @@ export interface NumberingConfig {
   fontFamily: string;
   fontSize: number; // px relative to image real pixels
   bold: boolean;
+  padding: { top: number; right: number; bottom: number; left: number }; // px relative to image
   position: "top-left" | "top-center" | "top-right";
 }
 
@@ -164,6 +165,29 @@ export function NumberingEditor({
               className="accent-[hsl(var(--primary))]"
             />
             <label htmlFor="bold-toggle" className="label-mono cursor-pointer">Bold</label>
+          </div>
+
+          {/* Padding */}
+          <div className="flex flex-col gap-2">
+            <label className="label-mono">Padding (px)</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["top", "right", "bottom", "left"] as const).map((side) => (
+                <div key={side} className="flex flex-col gap-0.5">
+                  <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={config.padding[side]}
+                    onChange={(e) => onConfigChange({
+                      ...config,
+                      padding: { ...config.padding, [side]: Math.max(0, parseInt(e.target.value) || 0) },
+                    })}
+                    className="crop-input w-full px-2 py-1.5 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Default position */}
@@ -357,7 +381,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
             <div
               style={{
                 background: "#ffffff",
-                padding: `0 ${displayFontSize * 0.3}px ${displayFontSize * 0.2}px 0`,
+                padding: `${(config.padding.top / image.naturalWidth) * imgSize.w}px ${(config.padding.right / image.naturalWidth) * imgSize.w}px ${(config.padding.bottom / image.naturalWidth) * imgSize.w}px ${(config.padding.left / image.naturalWidth) * imgSize.w}px`,
                 fontFamily: `"${config.fontFamily}", sans-serif`,
                 fontSize: displayFontSize,
                 lineHeight: 1.25,
