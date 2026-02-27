@@ -359,44 +359,44 @@ export default function Index() {
 
   const handleNumberedExport = useCallback(async () => {
     setIsNumberExporting(true);
-    const zip = new JSZip();
-    const folder = zip.folder("numbered");
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("numbered");
 
-    for (let i = 0; i < numberedImages.length; i++) {
-      const img = numberedImages[i];
-      let blob = img.blob;
-      if (img.label) {
-        blob = await burnTextOntoImage(blob, {
-          text: img.label,
-          x: img.labelX,
-          y: img.labelY,
-          fontFamily: numberingConfig.fontFamily,
-          fontSize: numberingConfig.fontSize,
-        });
+      const burnedBlobs: Blob[] = [];
+      for (let i = 0; i < numberedImages.length; i++) {
+        const img = numberedImages[i];
+        let blob = img.blob;
+        if (img.label) {
+          console.log(`Burning label "${img.label}" at (${img.labelX}, ${img.labelY}) fontSize=${numberingConfig.fontSize}`);
+          try {
+            blob = await burnTextOntoImage(blob, {
+              text: img.label,
+              x: img.labelX,
+              y: img.labelY,
+              fontFamily: numberingConfig.fontFamily,
+              fontSize: numberingConfig.fontSize,
+            });
+            console.log(`Burn succeeded, blob size: ${blob.size}`);
+          } catch (err) {
+            console.error(`Burn failed for image ${i}:`, err);
+          }
+        }
+        burnedBlobs.push(blob);
+        const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
+        folder?.file(`${img.label || `image_${i + 1}`}${ext}`, blob);
       }
-      const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
-      folder?.file(`${img.label || `image_${i + 1}`}${ext}`, blob);
-    }
 
-    if (numberedImages.length === 1) {
-      const img = numberedImages[0];
-      let blob = img.blob;
-      if (img.label) {
-        blob = await burnTextOntoImage(blob, {
-          text: img.label,
-          x: img.labelX,
-          y: img.labelY,
-          fontFamily: numberingConfig.fontFamily,
-          fontSize: numberingConfig.fontSize,
-        });
+      if (numberedImages.length === 1) {
+        const ext = burnedBlobs[0].type === "image/png" ? ".png" : burnedBlobs[0].type === "image/webp" ? ".webp" : ".jpg";
+        saveAs(burnedBlobs[0], `${numberedImages[0].label || "image"}${ext}`);
+      } else {
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        saveAs(zipBlob, "numbered_images.zip");
       }
-      const ext = blob.type === "image/png" ? ".png" : blob.type === "image/webp" ? ".webp" : ".jpg";
-      saveAs(blob, `${img.label || "image"}${ext}`);
-    } else {
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, "numbered_images.zip");
+    } catch (err) {
+      console.error("Export failed:", err);
     }
-
     setIsNumberExporting(false);
   }, [numberedImages, numberingConfig]);
 
