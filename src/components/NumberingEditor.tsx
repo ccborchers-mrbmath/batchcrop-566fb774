@@ -42,6 +42,7 @@ interface NumberingEditorProps {
   config: NumberingConfig;
   onConfigChange: (config: NumberingConfig) => void;
   onImageUpdate: (id: string, updates: Partial<NumberedImage>) => void;
+  onReorder: (reordered: NumberedImage[]) => void;
   onExport: () => void;
   onBack: () => void;
   isExporting: boolean;
@@ -52,12 +53,15 @@ export function NumberingEditor({
   config,
   onConfigChange,
   onImageUpdate,
+  onReorder,
   onExport,
   onBack,
   isExporting,
 }: NumberingEditorProps) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const selected = images[selectedIdx] ?? null;
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -241,14 +245,33 @@ export function NumberingEditor({
               {images.map((img, i) => (
                 <button
                   key={img.id}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+                  onDragLeave={() => setDragOverIdx(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragIdx !== null && dragIdx !== i) {
+                      const reordered = [...images];
+                      const [moved] = reordered.splice(dragIdx, 1);
+                      reordered.splice(i, 0, moved);
+                      onReorder(reordered);
+                      setSelectedIdx(i);
+                    }
+                    setDragIdx(null);
+                    setDragOverIdx(null);
+                  }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
                   onClick={() => setSelectedIdx(i)}
                   className="flex items-center gap-2 px-2.5 py-2 rounded text-xs transition-colors text-left"
                   style={{
                     background: i === selectedIdx ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))",
-                    border: `1px solid ${i === selectedIdx ? "hsl(var(--primary) / 0.3)" : "hsl(var(--border))"}`,
+                    border: `1px solid ${dragOverIdx === i ? "hsl(var(--primary))" : i === selectedIdx ? "hsl(var(--primary) / 0.3)" : "hsl(var(--border))"}`,
                     color: "hsl(var(--foreground))",
+                    opacity: dragIdx === i ? 0.5 : 1,
                   }}
                 >
+                  <GripVertical size={12} className="shrink-0 opacity-40" style={{ color: "hsl(var(--muted-foreground))" }} />
                   <img
                     src={img.previewUrl}
                     alt=""
