@@ -445,6 +445,26 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
   }, [dragging, onUpdate]);
 
+  // Arrow key nudging
+  const NUDGE_STEP = 0.005; // 0.5% of image dimension per press
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (editingLabel) return;
+      const arrow = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+      if (!arrow.includes(e.key)) return;
+      e.preventDefault();
+      const step = e.shiftKey ? NUDGE_STEP * 5 : NUDGE_STEP;
+      let { labelX: x, labelY: y } = image;
+      if (e.key === "ArrowLeft") x = Math.max(0, x - step);
+      if (e.key === "ArrowRight") x = Math.min(1, x + step);
+      if (e.key === "ArrowUp") y = Math.max(0, y - step);
+      if (e.key === "ArrowDown") y = Math.min(1, y + step);
+      onUpdate({ labelX: x, labelY: y });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [image.labelX, image.labelY, editingLabel, onUpdate, image]);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
