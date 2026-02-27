@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
@@ -7,9 +7,11 @@ import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { RegionEditor } from "@/components/RegionEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
+import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
 import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
+import { burnTextOntoImage } from "@/lib/burnText";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
@@ -34,6 +36,16 @@ export default function Index() {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("batch");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [numberingMode, setNumberingMode] = useState(false);
+  const [numberedImages, setNumberedImages] = useState<NumberedImage[]>([]);
+  const [numberingConfig, setNumberingConfig] = useState<NumberingConfig>({
+    prefix: "Q",
+    startNumber: 1,
+    fontFamily: "Times New Roman",
+    fontSize: 28,
+    position: "top-left",
+  });
+  const [isNumberExporting, setIsNumberExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -295,6 +307,111 @@ export default function Index() {
     });
   }, []);
 
+  // ── Enter numbering mode ──
+  const enterNumberingMode = useCallback(async () => {
+    // Extract all regions (or whole cropped images) into individual blobs
+    const numbered: NumberedImage[] = [];
+    let counter = numberingConfig.startNumber;
+
+    for (const entry of images) {
+      const croppedBlob = hasCrop
+        ? await cropImageFile(entry.file, crop)
+        : entry.file;
+
+      if (entry.regions.length > 0) {
+        for (const region of entry.regions) {
+          const blob = await extractRegion(croppedBlob, region);
+          const url = URL.createObjectURL(blob);
+          numbered.push({
+            id: `${entry.id}-${region.id}`,
+            blob,
+            previewUrl: url,
+            naturalWidth: region.w,
+            naturalHeight: region.h,
+            label: `${numberingConfig.prefix}${counter}`,
+            labelX: 0.02,
+            labelY: 0.02,
+          });
+          counter++;
+        }
+      } else {
+        const size = naturalSizes[entry.id];
+        const w = size ? Math.max(1, size.w - crop.left - crop.right) : 800;
+        const h = size ? Math.max(1, size.h - crop.top - crop.bottom) : 600;
+        const url = URL.createObjectURL(croppedBlob);
+        numbered.push({
+          id: entry.id,
+          blob: croppedBlob,
+          previewUrl: url,
+          naturalWidth: w,
+          naturalHeight: h,
+          label: `${numberingConfig.prefix}${counter}`,
+          labelX: 0.02,
+          labelY: 0.02,
+        });
+        counter++;
+      }
+    }
+
+    setNumberedImages(numbered);
+    setNumberingMode(true);
+  }, [images, crop, hasCrop, naturalSizes, numberingConfig]);
+
+  const handleNumberedExport = useCallback(async () => {
+    setIsNumberExporting(true);
+    const zip = new JSZip();
+    const folder = zip.folder("numbered");
+
+    for (let i = 0; i < numberedImages.length; i++) {
+      const img = numberedImages[i];
+      let blob = img.blob;
+      if (img.label) {
+        blob = await burnTextOntoImage(blob, {
+          text: img.label,
+          x: img.labelX,
+          y: img.labelY,
+          fontFamily: numberingConfig.fontFamily,
+          fontSize: numberingConfig.fontSize,
+        });
+      }
+      const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
+      folder?.file(`${img.label || `image_${i + 1}`}${ext}`, blob);
+    }
+
+    if (numberedImages.length === 1) {
+      const img = numberedImages[0];
+      let blob = img.blob;
+      if (img.label) {
+        blob = await burnTextOntoImage(blob, {
+          text: img.label,
+          x: img.labelX,
+          y: img.labelY,
+          fontFamily: numberingConfig.fontFamily,
+          fontSize: numberingConfig.fontSize,
+        });
+      }
+      const ext = blob.type === "image/png" ? ".png" : blob.type === "image/webp" ? ".webp" : ".jpg";
+      saveAs(blob, `${img.label || "image"}${ext}`);
+    } else {
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      saveAs(zipBlob, "numbered_images.zip");
+    }
+
+    setIsNumberExporting(false);
+  }, [numberedImages, numberingConfig]);
+
+  const exitNumberingMode = useCallback(() => {
+    numberedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    setNumberedImages([]);
+    setNumberingMode(false);
+  }, [numberedImages]);
+
+  const updateNumberedImage = useCallback((id: string, updates: Partial<NumberedImage>) => {
+    setNumberedImages((prev) =>
+      prev.map((img) => img.id === id ? { ...img, ...updates } : img)
+    );
+  }, []);
+
   const totalRegions = images.reduce((acc, img) => acc + img.regions.length, 0);
   const imagesWithRegions = images.filter((img) => img.regions.length > 0).length;
 
@@ -368,11 +485,19 @@ export default function Index() {
           <p className="label-mono" style={{ marginTop: 1 }}>pixel-perfect edge cropping</p>
         </div>
 
-        {images.length > 0 && (
+        {images.length > 0 && !numberingMode && (
           <div className="flex items-center gap-2">
             <button onClick={clearAll} className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2">
               <Trash2 size={13} />
               Clear all
+            </button>
+            <button
+              onClick={enterNumberingMode}
+              disabled={images.length === 0}
+              className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+            >
+              <Type size={13} />
+              Number Images
             </button>
             <button
               onClick={handleCropAndDownload}
@@ -388,7 +513,17 @@ export default function Index() {
 
       {/* Body */}
       <div className="flex-1 overflow-hidden flex">
-        {images.length > 0 && selectedEntry && selectedSize ? (
+        {numberingMode ? (
+          <NumberingEditor
+            images={numberedImages}
+            config={numberingConfig}
+            onConfigChange={setNumberingConfig}
+            onImageUpdate={updateNumberedImage}
+            onExport={handleNumberedExport}
+            onBack={exitNumberingMode}
+            isExporting={isNumberExporting}
+          />
+        ) : images.length > 0 && selectedEntry && selectedSize ? (
           <>
             {/* ── LEFT SIDEBAR ── */}
             <aside
