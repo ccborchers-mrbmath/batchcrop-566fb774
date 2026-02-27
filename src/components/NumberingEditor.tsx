@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, Type, GripVertical } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 
 export interface NumberedImage {
   id: string;
@@ -145,13 +145,11 @@ export function NumberingEditor({
           {/* Font size */}
           <div className="flex flex-col gap-2">
             <label className="label-mono">Font Size (px)</label>
-            <input
-              type="number"
+            <NumberStepper
+              value={config.fontSize}
               min={8}
               max={200}
-              value={config.fontSize}
-              onChange={(e) => onConfigChange({ ...config, fontSize: Math.max(8, parseInt(e.target.value) || 24) })}
-              className="crop-input w-full px-3 py-2 text-sm"
+              onChange={(v) => onConfigChange({ ...config, fontSize: v })}
             />
           </div>
 
@@ -174,16 +172,15 @@ export function NumberingEditor({
               {(["top", "right", "bottom", "left"] as const).map((side) => (
                 <div key={side} className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
-                  <input
-                    type="number"
+                  <NumberStepper
+                    value={config.padding[side]}
                     min={0}
                     max={100}
-                    value={config.padding[side]}
-                    onChange={(e) => onConfigChange({
+                    onChange={(v) => onConfigChange({
                       ...config,
-                      padding: { ...config.padding, [side]: Math.max(0, parseInt(e.target.value) || 0) },
+                      padding: { ...config.padding, [side]: v },
                     })}
-                    className="crop-input w-full px-2 py-1.5 text-sm"
+                    small
                   />
                 </div>
               ))}
@@ -277,6 +274,59 @@ export function NumberingEditor({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Number input with clickable stepper arrows ─────────────────────
+
+function NumberStepper({
+  value,
+  min = 0,
+  max = 999,
+  step = 1,
+  onChange,
+  small,
+}: {
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onChange: (v: number) => void;
+  small?: boolean;
+}) {
+  const clamp = (v: number) => Math.max(min, Math.min(max, v));
+  return (
+    <div className="relative flex items-center">
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(clamp(parseInt(e.target.value) || min))}
+        className={`crop-input w-full pr-7 text-sm ${small ? "px-2 py-1.5" : "px-3 py-2"}`}
+        style={{ MozAppearance: "textfield" }}
+      />
+      <div className="absolute right-0 top-0 bottom-0 flex flex-col w-6" style={{ borderLeft: "1px solid hsl(var(--border))" }}>
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => onChange(clamp(value + step))}
+          className="flex-1 flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors rounded-tr"
+          style={{ borderBottom: "1px solid hsl(var(--border))" }}
+        >
+          <ChevronUp size={10} style={{ color: "hsl(var(--muted-foreground))" }} />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => onChange(clamp(value - step))}
+          className="flex-1 flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors rounded-br"
+        >
+          <ChevronDown size={10} style={{ color: "hsl(var(--muted-foreground))" }} />
+        </button>
       </div>
     </div>
   );
