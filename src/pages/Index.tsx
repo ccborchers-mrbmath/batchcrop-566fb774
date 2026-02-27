@@ -85,10 +85,15 @@ export default function Index() {
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files);
-    const imageFiles = arr.filter((f) => f.type.startsWith("image/"));
-    const pdfFiles = arr.filter((f) => f.type === "application/pdf");
+    const isImageFile = (f: File) =>
+      f.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|svg|tiff?)$/i.test(f.name);
+    const isPdfFile = (f: File) =>
+      f.type === "application/pdf" || /\.pdf$/i.test(f.name);
 
-    const isFirstBatch = imageFiles.length > 0;
+    const imageFiles = arr.filter(isImageFile);
+    const pdfFiles = arr.filter(isPdfFile);
+
+    const hasImageUpload = imageFiles.length > 0;
     addImageFiles(imageFiles, true);
 
     for (const pdf of pdfFiles) {
@@ -100,7 +105,7 @@ export default function Index() {
         const convertedFiles = pages.map(
           ({ blob, name }) => new File([blob], name, { type: "image/png" })
         );
-        addImageFiles(convertedFiles, !isFirstBatch);
+        addImageFiles(convertedFiles, !hasImageUpload);
       } catch (err) {
         console.error("PDF conversion failed:", err);
       }
@@ -553,7 +558,11 @@ export default function Index() {
                     accept="image/*,application/pdf"
                     multiple
                     className="hidden"
-                    onChange={(e) => e.target.files && addFiles(e.target.files)}
+                    onChange={(e) => {
+                      if (!e.target.files) return;
+                      void addFiles(e.target.files);
+                      e.currentTarget.value = "";
+                    }}
                   />
                 </div>
 
@@ -651,7 +660,11 @@ export default function Index() {
                 accept="image/*,application/pdf"
                 multiple
                 className="hidden"
-                onChange={(e) => e.target.files && addFiles(e.target.files)}
+                onChange={(e) => {
+                  if (!e.target.files) return;
+                  void addFiles(e.target.files);
+                  e.currentTarget.value = "";
+                }}
               />
             </div>
           </div>
