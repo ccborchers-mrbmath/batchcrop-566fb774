@@ -446,7 +446,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
   }, [dragging, onUpdate]);
 
   // Arrow key nudging
-  const NUDGE_STEP = 0.005; // 0.5% of image dimension per press
+  const NUDGE_STEP = 0.002; // 0.2% of image dimension per press
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (editingLabel) return;
