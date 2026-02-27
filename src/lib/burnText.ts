@@ -51,6 +51,12 @@ export async function burnTextOntoImage(
       ctx.fillStyle = "#000000";
       ctx.fillText(overlay.text, px, py);
 
+      // Debug: verify pixels at expected text position
+      const checkX = Math.max(0, Math.min(canvas.width - 1, Math.round(px + textW / 2)));
+      const checkY = Math.max(0, Math.min(canvas.height - 1, Math.round(py + fontPx / 2)));
+      const pixel = ctx.getImageData(checkX, checkY, 1, 1).data;
+      console.log(`[burn-debug] canvas=${canvas.width}x${canvas.height} px=${px.toFixed(1)} py=${py.toFixed(1)} textW=${textW.toFixed(1)} checkPixel@(${checkX},${checkY})=[${pixel[0]},${pixel[1]},${pixel[2]}]`);
+
       const mime =
         (source as File).type === "image/png" ? "image/png" :
         (source as File).type === "image/webp" ? "image/webp" :
