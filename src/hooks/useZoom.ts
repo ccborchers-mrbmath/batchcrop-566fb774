@@ -6,7 +6,7 @@ export interface ZoomState {
   offsetY: number;
 }
 
-const MIN_SCALE = 1;
+const MIN_SCALE = 0.1;
 const MAX_SCALE = 8;
 const ZOOM_STEP = 0.25;
 
@@ -70,7 +70,7 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
   const zoomOut = useCallback(() => {
     setZoom((prev) => {
       const newScale = Math.max(MIN_SCALE, parseFloat((prev.scale - ZOOM_STEP).toFixed(2)));
-      if (newScale <= 1) return { scale: 1, offsetX: 0, offsetY: 0 };
+      if (newScale <= 1) return { scale: newScale, offsetX: 0, offsetY: 0 };
       const { x, y } = clampOffset(prev.offsetX, prev.offsetY, newScale);
       return { scale: newScale, offsetX: x, offsetY: y };
     });
