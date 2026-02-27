@@ -32,10 +32,12 @@ const FONT_OPTIONS = [
 ];
 
 const POSITION_PRESETS: Record<string, { x: number; y: number }> = {
-  "top-left": { x: 0.02, y: 0.02 },
-  "top-center": { x: 0.45, y: 0.02 },
-  "top-right": { x: 0.85, y: 0.02 },
+  "top-left": { x: 0, y: 0 },
+  "top-center": { x: 0.45, y: 0 },
+  "top-right": { x: 0.85, y: 0 },
 };
+
+const SNAP_THRESHOLD = 0.02; // snap to edge when within 2%
 
 interface NumberingEditorProps {
   images: NumberedImage[];
@@ -410,8 +412,13 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       const img = imgRef.current;
       if (!img) return;
       const rect = img.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (e.clientX - rect.left - dragOffset.current.x) / rect.width));
-      const y = Math.max(0, Math.min(1, (e.clientY - rect.top - dragOffset.current.y) / rect.height));
+      let x = Math.max(0, Math.min(1, (e.clientX - rect.left - dragOffset.current.x) / rect.width));
+      let y = Math.max(0, Math.min(1, (e.clientY - rect.top - dragOffset.current.y) / rect.height));
+      // Snap to edges when close
+      if (x < SNAP_THRESHOLD) x = 0;
+      if (y < SNAP_THRESHOLD) y = 0;
+      if (x > 1 - SNAP_THRESHOLD) x = 1 - SNAP_THRESHOLD;
+      if (y > 1 - SNAP_THRESHOLD) y = 1 - SNAP_THRESHOLD;
       onUpdate({ labelX: x, labelY: y });
     };
     const onUp = () => setDragging(false);
