@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { CropValues } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
@@ -12,6 +12,10 @@ interface CropPreviewEditorProps {
   crop: CropValues;
   onChange: (crop: CropValues) => void;
   onRemove?: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  currentIndex?: number;
+  totalImages?: number;
 }
 
 type DragEdge = "top" | "right" | "bottom" | "left" | null;
@@ -26,6 +30,10 @@ export function CropPreviewEditor({
   crop,
   onChange,
   onRemove,
+  onPrev,
+  onNext,
+  currentIndex,
+  totalImages,
 }: CropPreviewEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<DragEdge>(null);
@@ -129,6 +137,32 @@ export function CropPreviewEditor({
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {/* Prev / Next navigation */}
+          {(onPrev || onNext) && (
+            <div className="flex items-center gap-1 mr-2">
+              <button
+                onClick={onPrev}
+                disabled={!onPrev}
+                className="w-6 h-6 rounded flex items-center justify-center transition-opacity disabled:opacity-25"
+                style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                title="Previous image"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="label-mono tabular-nums" style={{ minWidth: 40, textAlign: "center" }}>
+                {(currentIndex ?? 0) + 1}/{totalImages ?? 0}
+              </span>
+              <button
+                onClick={onNext}
+                disabled={!onNext}
+                className="w-6 h-6 rounded flex items-center justify-center transition-opacity disabled:opacity-25"
+                style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                title="Next image"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
           <p className="label-mono">Crop Preview — drag edges to set crop</p>
           {onRemove && (
             <button
