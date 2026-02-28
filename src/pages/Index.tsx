@@ -39,11 +39,11 @@ export default function Index() {
   const [numberingMode, setNumberingMode] = useState(false);
   const [numberedImages, setNumberedImages] = useState<NumberedImage[]>([]);
   const [numberingConfig, setNumberingConfig] = useState<NumberingConfig>({
-    prefix: "Q",
+    prefix: "",
     startNumber: 1,
     fontFamily: "Times New Roman",
     fontSize: 28,
-    bold: false,
+    bold: true,
     padding: { top: 0, right: 8, bottom: 6, left: 0 },
     position: "top-left",
   });
