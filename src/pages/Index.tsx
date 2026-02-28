@@ -115,7 +115,7 @@ export default function Index() {
     for (const pdf of pdfFiles) {
       setPdfProgress({ done: 0, total: 0, name: pdf.name });
       try {
-        const pages = await pdfToImages(pdf, 2, (done, total) => {
+        const pages = await pdfToImages(pdf, 4, (done, total) => {
           setPdfProgress({ done, total, name: pdf.name });
         });
         const convertedFiles = pages.map(

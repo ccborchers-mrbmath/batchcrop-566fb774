@@ -24,12 +24,13 @@ export async function stretchImageToSize(
       const mime =
         file.type === "image/png"  ? "image/png"  :
         file.type === "image/webp" ? "image/webp" :
-        "image/jpeg";
+        file.type && file.type !== "" ? "image/jpeg" :
+        "image/png";
 
       canvas.toBlob(
         (blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")),
         mime,
-        0.95
+        1.0
       );
     };
 

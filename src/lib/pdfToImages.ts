@@ -12,7 +12,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dis
  */
 export async function pdfToImages(
   file: File,
-  scale = 2,
+  scale = 4,
   onProgress?: (done: number, total: number) => void
 ): Promise<{ blob: Blob; name: string }[]> {
   const arrayBuffer = await file.arrayBuffer();
