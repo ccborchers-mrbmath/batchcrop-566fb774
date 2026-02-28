@@ -394,7 +394,7 @@ export function RegionEditor({
           />
 
           {/* Pixel grid overlay */}
-          {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={croppedWidth} naturalHeight={croppedHeight} />}
+          {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={croppedWidth} naturalHeight={croppedHeight} zoomScale={zoom.scale} />}
 
           {/* Saved regions with resize handles */}
           {displaySize.w > 0 &&

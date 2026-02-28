@@ -232,7 +232,7 @@ export function CropPreviewEditor({
             />
 
             {/* Pixel grid overlay */}
-            {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={naturalWidth} naturalHeight={naturalHeight} />}
+            {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={naturalWidth} naturalHeight={naturalHeight} zoomScale={zoom.scale} />}
 
             {/* Crop shadow overlays */}
             <div

@@ -513,7 +513,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
             onLoad={updateImgSize}
           />
           {/* Pixel grid overlay */}
-          {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} />}
+          {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
           {imgSize.w > 0 && image.label && (
             <div

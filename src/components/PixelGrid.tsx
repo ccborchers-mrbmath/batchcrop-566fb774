@@ -1,38 +1,48 @@
 import { Grid3X3 } from "lucide-react";
 
 interface PixelGridOverlayProps {
-  /** Displayed width of the image element in CSS px */
+  /** Displayed width of the image element in CSS px (before zoom) */
   displayWidth: number;
-  /** Displayed height of the image element in CSS px */
+  /** Displayed height of the image element in CSS px (before zoom) */
   displayHeight: number;
   /** Natural width of the source image in real pixels */
   naturalWidth: number;
   /** Natural height of the source image in real pixels */
   naturalHeight: number;
+  /** Current zoom scale (the grid is inside the zoomed wrapper) */
+  zoomScale: number;
 }
 
 /**
  * Renders a true pixel-level grid overlay like Paint.NET.
  * Each cell corresponds to one pixel of the source image.
- * Only renders when cells are large enough to be visible (≥4px).
+ * Only renders when cells are large enough on screen (≥3px after zoom).
  */
 export function PixelGridOverlay({
   displayWidth,
   displayHeight,
   naturalWidth,
   naturalHeight,
+  zoomScale,
 }: PixelGridOverlayProps) {
   if (displayWidth <= 0 || displayHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0)
     return null;
 
-  // Size of one image pixel in display coordinates
+  // Size of one image pixel in display coordinates (before zoom)
   const cellW = displayWidth / naturalWidth;
   const cellH = displayHeight / naturalHeight;
 
-  // Don't render if cells are too small to see
-  if (cellW < 4 || cellH < 4) return null;
+  // On screen, these cells appear cellW * zoomScale px wide
+  const visualCellW = cellW * zoomScale;
+  const visualCellH = cellH * zoomScale;
 
-  const patternId = `pixel-grid-${Math.round(cellW * 100)}`;
+  // Don't render if cells are too small to see on screen
+  if (visualCellW < 3 || visualCellH < 3) return null;
+
+  // Adjust opacity based on cell size — more visible when zoomed in more
+  const opacity = Math.min(0.5, 0.15 + (Math.min(visualCellW, visualCellH) - 3) * 0.02);
+
+  const patternId = `pixel-grid-${Math.round(cellW * 1000)}-${Math.round(cellH * 1000)}`;
 
   return (
     <svg
@@ -55,8 +65,8 @@ export function PixelGridOverlay({
             height={cellH}
             fill="none"
             stroke="hsl(var(--foreground))"
-            strokeWidth="0.5"
-            strokeOpacity="0.25"
+            strokeWidth={Math.max(0.25, 0.5 / zoomScale)}
+            strokeOpacity={opacity}
           />
         </pattern>
       </defs>
