@@ -3,6 +3,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { CropValues } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
+import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 
 interface CropPreviewEditorProps {
   imageUrl: string;
@@ -39,6 +40,7 @@ export function CropPreviewEditor({
   const dragging = useRef<DragEdge>(null);
   const startPos = useRef({ x: 0, y: 0 });
   const startCrop = useRef<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
+  const [showGrid, setShowGrid] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
 
   const imgRef = useRef<HTMLImageElement>(null);
@@ -185,6 +187,7 @@ export function CropPreviewEditor({
             onReset={reset}
             onSliderChange={(v) => setScale(v)}
           />
+          <GridToggle show={showGrid} onToggle={() => setShowGrid((v) => !v)} />
           {hasCrop && (
             <button
               className="label-mono hover:text-primary transition-colors"
@@ -226,6 +229,9 @@ export function CropPreviewEditor({
               onLoad={updateDisplaySize}
               style={{ display: "block" }}
             />
+
+            {/* Pixel grid overlay */}
+            {showGrid && <PixelGridOverlay width={displaySize.w} height={displaySize.h} />}
 
             {/* Crop shadow overlays */}
             <div
