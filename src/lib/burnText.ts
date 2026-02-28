@@ -37,31 +37,30 @@ export async function burnTextOntoImage(
       ctx.font = `${weight} ${fontPx}px "${overlay.fontFamily}", sans-serif`;
       ctx.textBaseline = "top";
 
+      // Box top-left is at (px, py) — same as the preview's CSS positioning.
+      // Text is drawn inside the box, offset by padding.
       const px = overlay.x * canvas.width;
       const py = overlay.y * canvas.height;
 
       // Measure text for background
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
-      const textH = fontPx * 1; // match display line-height
+      // Use actual measured height when available, otherwise fall back to fontSize
+      const ascent = metrics.actualBoundingBoxAscent ?? fontPx * 0.8;
+      const descent = metrics.actualBoundingBoxDescent ?? fontPx * 0.2;
+      const textH = ascent + descent;
       const padTop = overlay.padding?.top ?? 0;
       const padRight = overlay.padding?.right ?? 0;
       const padBottom = overlay.padding?.bottom ?? 0;
       const padLeft = overlay.padding?.left ?? 0;
 
-      // White background with configurable padding
+      // White background — box starts at (px, py), text inside at (px+padLeft, py+padTop)
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px - padLeft, py - padTop, padLeft + textW + padRight, padTop + textH + padBottom);
+      ctx.fillRect(px, py, padLeft + textW + padRight, padTop + textH + padBottom);
 
-      // Black text
+      // Black text — drawn at the padded offset inside the box
       ctx.fillStyle = "#000000";
-      ctx.fillText(overlay.text, px, py);
-
-      // Debug: verify pixels at expected text position
-      const checkX = Math.max(0, Math.min(canvas.width - 1, Math.round(px + textW / 2)));
-      const checkY = Math.max(0, Math.min(canvas.height - 1, Math.round(py + fontPx / 2)));
-      const pixel = ctx.getImageData(checkX, checkY, 1, 1).data;
-      console.log(`[burn-debug] canvas=${canvas.width}x${canvas.height} px=${px.toFixed(1)} py=${py.toFixed(1)} textW=${textW.toFixed(1)} checkPixel@(${checkX},${checkY})=[${pixel[0]},${pixel[1]},${pixel[2]}]`);
+      ctx.fillText(overlay.text, px + padLeft, py + padTop);
 
       const mime =
         (source as File).type === "image/png" ? "image/png" :
