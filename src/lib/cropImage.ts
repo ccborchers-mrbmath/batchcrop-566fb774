@@ -46,11 +46,10 @@ export async function cropImageFile(
 
       // Determine mime type
       const mime =
-        file.type === "image/png"
-          ? "image/png"
-          : file.type === "image/webp"
-          ? "image/webp"
-          : "image/jpeg";
+        file.type === "image/png"  ? "image/png"  :
+        file.type === "image/webp" ? "image/webp" :
+        file.type && file.type !== "" ? "image/jpeg" :
+        "image/png";
 
       canvas.toBlob(
         (blob) => {
@@ -58,7 +57,7 @@ export async function cropImageFile(
           else reject(new Error("Canvas toBlob failed"));
         },
         mime,
-        0.95
+        1.0
       );
     };
 
@@ -104,15 +103,17 @@ export async function extractRegion(source: Blob, region: Region): Promise<Blob>
 
       ctx.drawImage(img, region.x, region.y, region.w, region.h, 0, 0, region.w, region.h);
 
+      const t = (source as File).type;
       const mime =
-        (source as File).type === "image/png" ? "image/png" :
-        (source as File).type === "image/webp" ? "image/webp" :
-        "image/jpeg";
+        t === "image/png"  ? "image/png"  :
+        t === "image/webp" ? "image/webp" :
+        t && t !== "" ? "image/jpeg" :
+        "image/png";
 
       canvas.toBlob(
         (blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")),
         mime,
-        0.95
+        1.0
       );
     };
 

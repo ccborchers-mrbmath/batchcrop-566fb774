@@ -86,14 +86,16 @@ export async function burnTextOntoImage(
 
       console.log(`[burn] canvas=${canvas.width}x${canvas.height} box=(${boxX.toFixed(1)},${boxY.toFixed(1)}) text=(${textX.toFixed(1)},${textY.toFixed(1)}) textW=${textW.toFixed(1)} gripW=${gripWidth.toFixed(1)} textH=${textH.toFixed(1)} pad=(${padTop},${padRight},${padBottom},${padLeft}) font=${fontPx}px rectW=${(padLeft+textW+gripWidth+padRight).toFixed(1)} rectH=${(padTop+textH+padBottom).toFixed(1)}`);
 
+      const t = (source as File).type;
       const mime =
-        (source as File).type === "image/png" ? "image/png" :
-        (source as File).type === "image/webp" ? "image/webp" :
-        "image/jpeg";
+        t === "image/png"  ? "image/png"  :
+        t === "image/webp" ? "image/webp" :
+        t && t !== "" ? "image/jpeg" :
+        "image/png";
 
       canvas.toBlob(
         (blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")),
-        mime, 0.95
+        mime, 1.0
       );
     };
 
