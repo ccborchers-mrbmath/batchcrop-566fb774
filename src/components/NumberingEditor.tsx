@@ -497,6 +497,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
         onMouseDown={onPanMouseDown}
       >
         <div
+          className="relative"
           style={{
             transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
             transformOrigin: "center top",
@@ -512,7 +513,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
             onLoad={updateImgSize}
           />
           {/* Pixel grid overlay */}
-          {showGrid && <PixelGridOverlay width={imgSize.w} height={imgSize.h} />}
+          {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} />}
           {/* Text box overlay */}
           {imgSize.w > 0 && image.label && (
             <div

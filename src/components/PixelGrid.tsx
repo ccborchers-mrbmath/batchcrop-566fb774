@@ -1,95 +1,67 @@
 import { Grid3X3 } from "lucide-react";
 
 interface PixelGridOverlayProps {
-  width: number;
-  height: number;
+  /** Displayed width of the image element in CSS px */
+  displayWidth: number;
+  /** Displayed height of the image element in CSS px */
+  displayHeight: number;
+  /** Natural width of the source image in real pixels */
+  naturalWidth: number;
+  /** Natural height of the source image in real pixels */
+  naturalHeight: number;
 }
 
-/** Renders a subtle grid overlay across the image preview area */
-export function PixelGridOverlay({ width, height }: PixelGridOverlayProps) {
-  if (width <= 0 || height <= 0) return null;
+/**
+ * Renders a true pixel-level grid overlay like Paint.NET.
+ * Each cell corresponds to one pixel of the source image.
+ * Only renders when cells are large enough to be visible (≥4px).
+ */
+export function PixelGridOverlay({
+  displayWidth,
+  displayHeight,
+  naturalWidth,
+  naturalHeight,
+}: PixelGridOverlayProps) {
+  if (displayWidth <= 0 || displayHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0)
+    return null;
 
-  // Use a 3×3 grid (rule of thirds) plus a finer subdivided grid
-  const MAJOR_COLS = 3;
-  const MAJOR_ROWS = 3;
-  const MINOR_COLS = 12;
-  const MINOR_ROWS = 12;
+  // Size of one image pixel in display coordinates
+  const cellW = displayWidth / naturalWidth;
+  const cellH = displayHeight / naturalHeight;
+
+  // Don't render if cells are too small to see
+  if (cellW < 4 || cellH < 4) return null;
+
+  const patternId = `pixel-grid-${Math.round(cellW * 100)}`;
 
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-      {/* Minor grid lines */}
-      <svg
-        width="100%"
-        height="100%"
-        className="absolute inset-0"
-        style={{ opacity: 0.15 }}
-      >
-        {Array.from({ length: MINOR_COLS - 1 }, (_, i) => {
-          const x = ((i + 1) / MINOR_COLS) * 100;
-          return (
-            <line
-              key={`mv${i}`}
-              x1={`${x}%`}
-              y1="0"
-              x2={`${x}%`}
-              y2="100%"
-              stroke="hsl(var(--foreground))"
-              strokeWidth="0.5"
-            />
-          );
-        })}
-        {Array.from({ length: MINOR_ROWS - 1 }, (_, i) => {
-          const y = ((i + 1) / MINOR_ROWS) * 100;
-          return (
-            <line
-              key={`mh${i}`}
-              x1="0"
-              y1={`${y}%`}
-              x2="100%"
-              y2={`${y}%`}
-              stroke="hsl(var(--foreground))"
-              strokeWidth="0.5"
-            />
-          );
-        })}
-      </svg>
-      {/* Major grid lines (rule of thirds) */}
-      <svg
-        width="100%"
-        height="100%"
-        className="absolute inset-0"
-        style={{ opacity: 0.3 }}
-      >
-        {Array.from({ length: MAJOR_COLS - 1 }, (_, i) => {
-          const x = ((i + 1) / MAJOR_COLS) * 100;
-          return (
-            <line
-              key={`v${i}`}
-              x1={`${x}%`}
-              y1="0"
-              x2={`${x}%`}
-              y2="100%"
-              stroke="hsl(var(--foreground))"
-              strokeWidth="1"
-            />
-          );
-        })}
-        {Array.from({ length: MAJOR_ROWS - 1 }, (_, i) => {
-          const y = ((i + 1) / MAJOR_ROWS) * 100;
-          return (
-            <line
-              key={`h${i}`}
-              x1="0"
-              y1={`${y}%`}
-              x2="100%"
-              y2={`${y}%`}
-              stroke="hsl(var(--foreground))"
-              strokeWidth="1"
-            />
-          );
-        })}
-      </svg>
-    </div>
+    <svg
+      className="absolute left-0 top-0 pointer-events-none"
+      width={displayWidth}
+      height={displayHeight}
+      style={{ zIndex: 5 }}
+    >
+      <defs>
+        <pattern
+          id={patternId}
+          width={cellW}
+          height={cellH}
+          patternUnits="userSpaceOnUse"
+        >
+          <rect
+            x={0}
+            y={0}
+            width={cellW}
+            height={cellH}
+            fill="none"
+            stroke="hsl(var(--foreground))"
+            strokeWidth="0.5"
+            strokeOpacity="0.25"
+          />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+    </svg>
   );
 }
 
@@ -110,7 +82,7 @@ export function GridToggle({
         border: `1px solid ${show ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
         color: show ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
       }}
-      title="Toggle grid overlay"
+      title="Toggle pixel grid (visible when zoomed in)"
     >
       <Grid3X3 size={12} />
       Grid
