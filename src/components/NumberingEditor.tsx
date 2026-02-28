@@ -489,10 +489,12 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       </div>
       <div
         ref={containerRef}
-        className="relative inline-block select-none rounded"
+        tabIndex={0}
+        className="relative inline-block select-none rounded outline-none"
         style={{
           border: "1px solid hsl(var(--border))",
           cursor: zoom.scale > 1 ? "grab" : "default",
+          overflow: "clip",
         }}
         onMouseDown={onPanMouseDown}
       >
