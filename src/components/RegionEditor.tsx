@@ -376,6 +376,7 @@ export function RegionEditor({
       >
         {/* Zoomed inner wrapper */}
         <div
+          className="relative"
           style={{
             transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
             transformOrigin: "center top",
@@ -393,7 +394,7 @@ export function RegionEditor({
           />
 
           {/* Pixel grid overlay */}
-          {showGrid && <PixelGridOverlay width={displaySize.w} height={displaySize.h} />}
+          {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={croppedWidth} naturalHeight={croppedHeight} />}
 
           {/* Saved regions with resize handles */}
           {displaySize.w > 0 &&

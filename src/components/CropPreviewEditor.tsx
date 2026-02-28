@@ -214,6 +214,7 @@ export function CropPreviewEditor({
         >
           {/* Zoomed inner wrapper */}
           <div
+            className="relative"
             style={{
               transform: `scale(${zoom.scale}) translate(${zoom.offsetX / zoom.scale}px, ${zoom.offsetY / zoom.scale}px)`,
               transformOrigin: "center top",
@@ -231,7 +232,7 @@ export function CropPreviewEditor({
             />
 
             {/* Pixel grid overlay */}
-            {showGrid && <PixelGridOverlay width={displaySize.w} height={displaySize.h} />}
+            {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={naturalWidth} naturalHeight={naturalHeight} />}
 
             {/* Crop shadow overlays */}
             <div
