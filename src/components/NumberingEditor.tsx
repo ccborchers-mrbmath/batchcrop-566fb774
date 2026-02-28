@@ -437,8 +437,8 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       const img = imgRef.current;
       if (!img) return;
       const rect = img.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (e.clientX - rect.left - dragOffset.current.x) / rect.width));
-      const y = Math.max(0, Math.min(1, (e.clientY - rect.top - dragOffset.current.y) / rect.height));
+      const x = Math.max(-0.1, Math.min(1, (e.clientX - rect.left - dragOffset.current.x) / rect.width));
+      const y = Math.max(-0.1, Math.min(1, (e.clientY - rect.top - dragOffset.current.y) / rect.height));
       onUpdate({ labelX: x, labelY: y });
     };
     const onUp = () => setDragging(false);
@@ -457,9 +457,9 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       e.preventDefault();
       const step = e.shiftKey ? NUDGE_STEP * 5 : NUDGE_STEP;
       let { labelX: x, labelY: y } = image;
-      if (e.key === "ArrowLeft") x = Math.max(0, x - step);
+      if (e.key === "ArrowLeft") x = Math.max(-0.1, x - step);
       if (e.key === "ArrowRight") x = Math.min(1, x + step);
-      if (e.key === "ArrowUp") y = Math.max(0, y - step);
+      if (e.key === "ArrowUp") y = Math.max(-0.1, y - step);
       if (e.key === "ArrowDown") y = Math.min(1, y + step);
       onUpdate({ labelX: x, labelY: y });
     };
@@ -489,7 +489,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
       </div>
       <div
         ref={containerRef}
-        className="relative inline-block select-none rounded overflow-hidden"
+        className="relative inline-block select-none rounded"
         style={{
           border: "1px solid hsl(var(--border))",
           cursor: zoom.scale > 1 ? "grab" : "default",
@@ -535,7 +535,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
                   padding: `${(config.padding.top / image.naturalWidth) * imgSize.w}px ${(config.padding.right / image.naturalWidth) * imgSize.w}px ${(config.padding.bottom / image.naturalWidth) * imgSize.w}px ${(config.padding.left / image.naturalWidth) * imgSize.w}px`,
                   fontFamily: `"${config.fontFamily}", sans-serif`,
                   fontSize: displayFontSize,
-                  lineHeight: 1.25,
+                  lineHeight: 1,
                   color: "#000000",
                   fontWeight: config.bold ? 700 : 400,
                   whiteSpace: "nowrap",

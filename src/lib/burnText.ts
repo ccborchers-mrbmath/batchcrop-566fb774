@@ -43,7 +43,7 @@ export async function burnTextOntoImage(
       // Measure text for background
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
-      const textH = fontPx * 1.25; // approximate line-height
+      const textH = fontPx * 1; // match display line-height
       const padTop = overlay.padding?.top ?? 0;
       const padRight = overlay.padding?.right ?? 0;
       const padBottom = overlay.padding?.bottom ?? 0;
