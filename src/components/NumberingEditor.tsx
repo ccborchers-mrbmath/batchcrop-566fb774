@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Download, Type, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
+import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 
 export interface NumberedImage {
   id: string;
@@ -397,6 +398,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const [editingLabel, setEditingLabel] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
@@ -472,6 +474,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
           Drag the label to reposition · double-click to edit text
         </p>
         <div className="flex items-center gap-3">
+          <GridToggle show={showGrid} onToggle={() => setShowGrid((v) => !v)} />
           <ZoomControls
             scale={zoom.scale}
             min={MIN_SCALE}
@@ -508,6 +511,8 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
             className="block w-full"
             onLoad={updateImgSize}
           />
+          {/* Pixel grid overlay */}
+          {showGrid && <PixelGridOverlay width={imgSize.w} height={imgSize.h} />}
           {/* Text box overlay */}
           {imgSize.w > 0 && image.label && (
             <div

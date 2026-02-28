@@ -3,6 +3,7 @@ import { Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Region } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
+import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 
 interface RegionEditorProps {
   imageUrl: string;
@@ -65,6 +66,7 @@ export function RegionEditor({
   const imgRef = useRef<HTMLImageElement>(null);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [drawing, setDrawing] = useState<DrawState | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
   const isDrawing = useRef(false);
   const resizing = useRef<ResizeState | null>(null);
 
@@ -349,6 +351,7 @@ export function RegionEditor({
             onReset={reset}
             onSliderChange={(v) => setScale(v)}
           />
+          <GridToggle show={showGrid} onToggle={() => setShowGrid((v) => !v)} />
           {regions.length > 0 && (
             <button
               className="label-mono hover:text-primary transition-colors"
@@ -388,6 +391,9 @@ export function RegionEditor({
             onLoad={updateDisplaySize}
             style={{ display: "block" }}
           />
+
+          {/* Pixel grid overlay */}
+          {showGrid && <PixelGridOverlay width={displaySize.w} height={displaySize.h} />}
 
           {/* Saved regions with resize handles */}
           {displaySize.w > 0 &&
