@@ -66,8 +66,8 @@ export function PixelGridOverlay({
           height={cellH}
           patternUnits="userSpaceOnUse"
         >
-          <line x1={cellW} y1="0" x2={cellW} y2={cellH} stroke="hsl(var(--primary))" strokeWidth={Math.max(0.3, 0.6 / zoomScale)} strokeOpacity="0.35" />
-          <line x1="0" y1={cellH} x2={cellW} y2={cellH} stroke="hsl(var(--primary))" strokeWidth={Math.max(0.3, 0.6 / zoomScale)} strokeOpacity="0.35" />
+          <line x1={cellW} y1="0" x2={cellW} y2={cellH} stroke="hsl(var(--primary))" strokeWidth={Math.max(0.5, 1 / zoomScale)} strokeOpacity="0.7" />
+          <line x1="0" y1={cellH} x2={cellW} y2={cellH} stroke="hsl(var(--primary))" strokeWidth={Math.max(0.5, 1 / zoomScale)} strokeOpacity="0.7" />
         </pattern>
         {/* Fine per-pixel pattern */}
         {showPixelGrid && (
@@ -77,8 +77,8 @@ export function PixelGridOverlay({
             height={pxH}
             patternUnits="userSpaceOnUse"
           >
-            <line x1={pxW} y1="0" x2={pxW} y2={pxH} stroke="hsl(var(--foreground))" strokeWidth={Math.max(0.2, 0.4 / zoomScale)} strokeOpacity="0.2" />
-            <line x1="0" y1={pxH} x2={pxW} y2={pxH} stroke="hsl(var(--foreground))" strokeWidth={Math.max(0.2, 0.4 / zoomScale)} strokeOpacity="0.2" />
+            <line x1={pxW} y1="0" x2={pxW} y2={pxH} stroke="hsl(var(--foreground))" strokeWidth={Math.max(0.3, 0.6 / zoomScale)} strokeOpacity="0.45" />
+            <line x1="0" y1={pxH} x2={pxW} y2={pxH} stroke="hsl(var(--foreground))" strokeWidth={Math.max(0.3, 0.6 / zoomScale)} strokeOpacity="0.45" />
           </pattern>
         )}
       </defs>
