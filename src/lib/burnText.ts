@@ -40,6 +40,7 @@ export async function burnTextOntoImage(
       const fontPx = overlay.fontSize;
       const weight = overlay.bold ? "bold" : "normal";
       ctx.font = `${weight} ${fontPx}px "${overlay.fontFamily}", sans-serif`;
+      ctx.textBaseline = "top";
 
       const padTop = overlay.padding?.top ?? 0;
       const padRight = overlay.padding?.right ?? 0;
@@ -58,32 +59,28 @@ export async function burnTextOntoImage(
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
 
-      // CSS lineHeight:1 means the line box = fontSize, with the glyph
-      // roughly centred inside it.  Canvas textBaseline:"top" places the
-      // top of the em-square at the drawn coordinate, which matches CSS
-      // line-height:1 closely.  But the white background must cover the
-      // full area the CSS box covers, which is fontSize tall plus padding.
-      const textH = fontPx * 1.2; // generous to cover descenders & accents
+      // The preview CSS div also contains the GripVertical drag icon which
+      // makes the white background wider than just the text. Account for
+      // the icon width: max(10, fontSize * 0.6) + ~4px margin-left.
+      const gripWidth = Math.max(10, fontPx * 0.6) + 4;
 
-      // Draw white background covering the full box
+      // Height: use fontSize * 1.2 to cover full glyph including descenders
+      const textH = fontPx * 1.2;
+
+      // Draw white background covering the full box (including grip area)
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(
         boxX,
         boxY,
-        padLeft + textW + padRight,
+        padLeft + textW + gripWidth + padRight,
         padTop + textH + padBottom
       );
 
-      // Draw text using alphabetic baseline for precise vertical control.
-      // CSS positions the top of the text at (boxY + padTop).
-      // With textBaseline:"alphabetic", we need to add the ascent.
-      // The ascent from "top" to "alphabetic" ≈ fontSize * 0.8 for most fonts.
-      const ascent = metrics.actualBoundingBoxAscent ?? fontPx * 0.8;
-      ctx.textBaseline = "alphabetic";
+      // Draw text
       ctx.fillStyle = "#000000";
-      ctx.fillText(overlay.text, textX, textY + ascent);
+      ctx.fillText(overlay.text, textX, textY);
 
-      console.log(`[burn] canvas=${canvas.width}x${canvas.height} box=(${boxX.toFixed(1)},${boxY.toFixed(1)}) text=(${textX.toFixed(1)},${(textY+ascent).toFixed(1)}) textW=${textW.toFixed(1)} textH=${textH.toFixed(1)} ascent=${ascent.toFixed(1)} pad=(${padTop},${padRight},${padBottom},${padLeft}) font=${fontPx}px rectW=${(padLeft+textW+padRight).toFixed(1)} rectH=${(padTop+textH+padBottom).toFixed(1)}`);
+      console.log(`[burn] canvas=${canvas.width}x${canvas.height} box=(${boxX.toFixed(1)},${boxY.toFixed(1)}) text=(${textX.toFixed(1)},${textY.toFixed(1)}) textW=${textW.toFixed(1)} gripW=${gripWidth.toFixed(1)} textH=${textH.toFixed(1)} pad=(${padTop},${padRight},${padBottom},${padLeft}) font=${fontPx}px rectW=${(padLeft+textW+gripWidth+padRight).toFixed(1)} rectH=${(padTop+textH+padBottom).toFixed(1)}`);
 
       const mime =
         (source as File).type === "image/png" ? "image/png" :
