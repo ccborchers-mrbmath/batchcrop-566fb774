@@ -7,7 +7,7 @@ export interface ZoomState {
 }
 
 const MIN_SCALE = 0.1;
-const MAX_SCALE = 8;
+const MAX_SCALE = 32;
 const ZOOM_STEP = 0.25;
 
 export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
