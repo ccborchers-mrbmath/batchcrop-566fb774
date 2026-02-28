@@ -21,8 +21,9 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
       const el = containerRef.current;
       if (!el || scale <= 1) return { x: 0, y: 0 };
       const rect = el.getBoundingClientRect();
-      const maxX = (rect.width * (scale - 1)) / 2;
-      const maxY = (rect.height * (scale - 1)) / 2;
+      // Allow panning far enough to reach any edge of the scaled content
+      const maxX = (rect.width * scale) / 2;
+      const maxY = (rect.height * scale) / 2;
       return {
         x: Math.max(-maxX, Math.min(maxX, x)),
         y: Math.max(-maxY, Math.min(maxY, y)),
@@ -42,10 +43,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
         if (el && focalX !== undefined && focalY !== undefined) {
           const rect = el.getBoundingClientRect();
           const relX = focalX - rect.left - rect.width / 2;
-          const relY = focalY - rect.top - rect.height / 2;
+          const relY = focalY - rect.top; // center-top origin
           const scaleDelta = clamped / prev.scale;
-          newOffsetX = (prev.offsetX + relX) * scaleDelta - relX;
-          newOffsetY = (prev.offsetY + relY) * scaleDelta - relY;
+          newOffsetX = (prev.offsetX + relX) / scaleDelta - relX;
+          newOffsetY = (prev.offsetY + relY) / scaleDelta - relY;
         }
 
         const { x, y } = clampOffset(newOffsetX, newOffsetY, clamped);
@@ -91,11 +92,18 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
 
         if (el) {
           const rect = el.getBoundingClientRect();
+          // transformOrigin is "center top", so the anchor is (center, top).
+          // Mouse position relative to that anchor:
           const relX = e.clientX - rect.left - rect.width / 2;
-          const relY = e.clientY - rect.top - rect.height / 2;
+          const relY = e.clientY - rect.top; // top-anchored, not center
           const scaleDelta = newScale / prev.scale;
-          newOffsetX = (prev.offsetX + relX) * scaleDelta - relX;
-          newOffsetY = (prev.offsetY + relY) * scaleDelta - relY;
+          // Keep the point under the cursor fixed:
+          // Before zoom: screen pos = anchor + (offset + rel) * oldScale
+          // After zoom:  screen pos = anchor + (newOffset + rel) * newScale
+          // Setting equal: newOffset = (offset + rel) * (oldScale/newScale) - rel
+          //              = (offset + rel) / scaleDelta - rel
+          newOffsetX = (prev.offsetX + relX) / scaleDelta - relX;
+          newOffsetY = (prev.offsetY + relY) / scaleDelta - relY;
         }
 
         const { x, y } = clampOffset(newOffsetX, newOffsetY, newScale);
