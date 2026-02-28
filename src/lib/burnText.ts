@@ -1,6 +1,11 @@
 /**
  * Burn a text label onto an image blob using Canvas.
  * Returns a new Blob with the text rendered at the given position.
+ *
+ * The coordinate system matches the CSS preview:
+ *   (x, y) is a 0–1 fraction marking the top-left corner of the
+ *   entire label **box** (padding included). Text is drawn inside
+ *   the box offset by padding.
  */
 export interface TextOverlay {
   text: string;
@@ -35,32 +40,41 @@ export async function burnTextOntoImage(
       const fontPx = overlay.fontSize;
       const weight = overlay.bold ? "bold" : "normal";
       ctx.font = `${weight} ${fontPx}px "${overlay.fontFamily}", sans-serif`;
-      ctx.textBaseline = "top";
 
-      // Box top-left is at (px, py) — same as the preview's CSS positioning.
-      // Text is drawn inside the box, offset by padding.
-      const px = overlay.x * canvas.width;
-      const py = overlay.y * canvas.height;
-
-      // Measure text for background
-      const metrics = ctx.measureText(overlay.text);
-      const textW = metrics.width;
-      // Use actual measured height when available, otherwise fall back to fontSize
-      const ascent = metrics.actualBoundingBoxAscent ?? fontPx * 0.8;
-      const descent = metrics.actualBoundingBoxDescent ?? fontPx * 0.2;
-      const textH = ascent + descent;
       const padTop = overlay.padding?.top ?? 0;
       const padRight = overlay.padding?.right ?? 0;
       const padBottom = overlay.padding?.bottom ?? 0;
       const padLeft = overlay.padding?.left ?? 0;
 
-      // White background — box starts at (px, py), text inside at (px+padLeft, py+padTop)
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px, py, padLeft + textW + padRight, padTop + textH + padBottom);
+      // Box top-left in image-pixel coordinates
+      const boxX = overlay.x * canvas.width;
+      const boxY = overlay.y * canvas.height;
 
-      // Black text — drawn at the padded offset inside the box
+      // Text origin inside the box (top-left of the text itself)
+      const textX = boxX + padLeft;
+      const textY = boxY + padTop;
+
+      // Measure text
+      const metrics = ctx.measureText(overlay.text);
+      const textW = metrics.width;
+
+      // For the white background height, use the CSS-equivalent line-height
+      // In the preview we use lineHeight: 1, so textH = fontSize
+      const textH = fontPx * 1.15; // slightly taller than fontSize to cover full glyph height
+
+      // Draw white background covering the full box
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(
+        boxX,
+        boxY,
+        padLeft + textW + padRight,
+        padTop + textH + padBottom
+      );
+
+      // Draw text — use "top" baseline so the text top aligns with textY
+      ctx.textBaseline = "top";
       ctx.fillStyle = "#000000";
-      ctx.fillText(overlay.text, px + padLeft, py + padTop);
+      ctx.fillText(overlay.text, textX, textY);
 
       const mime =
         (source as File).type === "image/png" ? "image/png" :
