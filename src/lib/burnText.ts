@@ -53,7 +53,11 @@ export async function burnTextOntoImage(
 
       // Text origin inside the box (top-left of the text itself)
       const textX = boxX + padLeft;
-      const textY = boxY + padTop;
+      // CSS lineHeight:1 adds a small amount of internal leading above
+      // the glyph that canvas textBaseline:"top" does not. Compensate by
+      // shifting text down by ~12% of fontSize to match the CSS position.
+      const cssLeadingOffset = fontPx * 0.12;
+      const textY = boxY + padTop + cssLeadingOffset;
 
       // Measure text
       const metrics = ctx.measureText(overlay.text);
