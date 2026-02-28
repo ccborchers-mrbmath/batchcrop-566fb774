@@ -43,10 +43,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
         if (el && focalX !== undefined && focalY !== undefined) {
           const rect = el.getBoundingClientRect();
           const relX = focalX - rect.left - rect.width / 2;
-          const relY = focalY - rect.top; // center-top origin
+          const relY = focalY - rect.top;
           const scaleDelta = clamped / prev.scale;
-          newOffsetX = (prev.offsetX + relX) / scaleDelta - relX;
-          newOffsetY = (prev.offsetY + relY) / scaleDelta - relY;
+          newOffsetX = relX * (1 - scaleDelta) + prev.offsetX * scaleDelta;
+          newOffsetY = relY * (1 - scaleDelta) + prev.offsetY * scaleDelta;
         }
 
         const { x, y } = clampOffset(newOffsetX, newOffsetY, clamped);
@@ -95,15 +95,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
           // transformOrigin is "center top", so the anchor is (center, top).
           // Mouse position relative to that anchor:
           const relX = e.clientX - rect.left - rect.width / 2;
-          const relY = e.clientY - rect.top; // top-anchored, not center
+          const relY = e.clientY - rect.top;
           const scaleDelta = newScale / prev.scale;
-          // Keep the point under the cursor fixed:
-          // Before zoom: screen pos = anchor + (offset + rel) * oldScale
-          // After zoom:  screen pos = anchor + (newOffset + rel) * newScale
-          // Setting equal: newOffset = (offset + rel) * (oldScale/newScale) - rel
-          //              = (offset + rel) / scaleDelta - rel
-          newOffsetX = (prev.offsetX + relX) / scaleDelta - relX;
-          newOffsetY = (prev.offsetY + relY) / scaleDelta - relY;
+          newOffsetX = relX * (1 - scaleDelta) + prev.offsetX * scaleDelta;
+          newOffsetY = relY * (1 - scaleDelta) + prev.offsetY * scaleDelta;
         }
 
         const { x, y } = clampOffset(newOffsetX, newOffsetY, newScale);
