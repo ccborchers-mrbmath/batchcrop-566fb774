@@ -58,9 +58,12 @@ export async function burnTextOntoImage(
       const metrics = ctx.measureText(overlay.text);
       const textW = metrics.width;
 
-      // For the white background height, use the CSS-equivalent line-height
-      // In the preview we use lineHeight: 1, so textH = fontSize
-      const textH = fontPx * 1.15; // slightly taller than fontSize to cover full glyph height
+      // CSS lineHeight:1 means the line box = fontSize, with the glyph
+      // roughly centred inside it.  Canvas textBaseline:"top" places the
+      // top of the em-square at the drawn coordinate, which matches CSS
+      // line-height:1 closely.  But the white background must cover the
+      // full area the CSS box covers, which is fontSize tall plus padding.
+      const textH = fontPx * 1.2; // generous to cover descenders & accents
 
       // Draw white background covering the full box
       ctx.fillStyle = "#ffffff";
@@ -71,10 +74,16 @@ export async function burnTextOntoImage(
         padTop + textH + padBottom
       );
 
-      // Draw text — use "top" baseline so the text top aligns with textY
-      ctx.textBaseline = "top";
+      // Draw text using alphabetic baseline for precise vertical control.
+      // CSS positions the top of the text at (boxY + padTop).
+      // With textBaseline:"alphabetic", we need to add the ascent.
+      // The ascent from "top" to "alphabetic" ≈ fontSize * 0.8 for most fonts.
+      const ascent = metrics.actualBoundingBoxAscent ?? fontPx * 0.8;
+      ctx.textBaseline = "alphabetic";
       ctx.fillStyle = "#000000";
-      ctx.fillText(overlay.text, textX, textY);
+      ctx.fillText(overlay.text, textX, textY + ascent);
+
+      console.log(`[burn] canvas=${canvas.width}x${canvas.height} box=(${boxX.toFixed(1)},${boxY.toFixed(1)}) text=(${textX.toFixed(1)},${(textY+ascent).toFixed(1)}) textW=${textW.toFixed(1)} textH=${textH.toFixed(1)} ascent=${ascent.toFixed(1)} pad=(${padTop},${padRight},${padBottom},${padLeft}) font=${fontPx}px rectW=${(padLeft+textW+padRight).toFixed(1)} rectH=${(padTop+textH+padBottom).toFixed(1)}`);
 
       const mime =
         (source as File).type === "image/png" ? "image/png" :
