@@ -440,7 +440,7 @@ export default function Index() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: "hsl(var(--background))" }}>
+    <div className={`flex flex-col ${images.length > 0 ? 'h-screen overflow-hidden' : 'min-h-screen'}`} style={{ background: "hsl(var(--background))" }}>
       {/* PDF progress overlay */}
       {pdfProgress && (
         <div
