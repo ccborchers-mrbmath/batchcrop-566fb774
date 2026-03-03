@@ -335,6 +335,7 @@ export default function Index() {
             label: `${numberingConfig.prefix}${counter}`,
             labelX: 0.02,
             labelY: 0.02,
+            fileLabel: `${numberingConfig.prefix}${counter}`,
             fileName: "",
           });
           counter++;
@@ -353,6 +354,7 @@ export default function Index() {
           label: `${numberingConfig.prefix}${counter}`,
           labelX: 0.02,
           labelY: 0.02,
+          fileLabel: `${numberingConfig.prefix}${counter}`,
           fileName: "",
         });
         counter++;

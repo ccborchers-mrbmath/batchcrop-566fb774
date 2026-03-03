@@ -12,7 +12,7 @@
  * @returns Array of individual file name parts (without batch prefix or extension).
  */
 export function generateFileNames(
-  images: { label: string }[]
+  images: { fileLabel: string }[]
 ): string[] {
   const result: string[] = new Array(images.length).fill("");
 
@@ -21,22 +21,22 @@ export function generateFileNames(
   let orphanCounter = 1;
 
   while (i < images.length) {
-    if (images[i].label) {
+    if (images[i].fileLabel) {
       // Find how many unlabeled images follow this one
       let j = i + 1;
-      while (j < images.length && !images[j].label) {
+      while (j < images.length && !images[j].fileLabel) {
         j++;
       }
       const groupSize = j - i; // includes the labeled image itself
 
       if (groupSize === 1) {
         // Standalone labeled image — no sub-parts needed
-        result[i] = images[i].label;
+        result[i] = images[i].fileLabel;
       } else {
         // Multi-part group: labeled + unlabeled followers
         const subParts = "abcdefghijklmnopqrstuvwxyz";
         for (let k = 0; k < groupSize && k < subParts.length; k++) {
-          result[i + k] = `${images[i].label}${subParts[k]}`;
+          result[i + k] = `${images[i].fileLabel}${subParts[k]}`;
         }
       }
       i = j;
