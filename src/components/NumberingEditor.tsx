@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, Type, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
+import { buildFullFileName } from "@/lib/generateFileNames";
 
 export interface NumberedImage {
   id: string;
@@ -14,6 +15,8 @@ export interface NumberedImage {
   /** Position as fraction 0-1 of image dimensions */
   labelX: number;
   labelY: number;
+  /** Individual file name part (without batch prefix or extension) */
+  fileName: string;
 }
 
 export interface NumberingConfig {
@@ -47,6 +50,9 @@ interface NumberingEditorProps {
   onExport: () => void;
   onBack: () => void;
   isExporting: boolean;
+  batchName: string;
+  onBatchNameChange: (name: string) => void;
+  onRegenerateFileNames: () => void;
 }
 
 export function NumberingEditor({
@@ -58,6 +64,9 @@ export function NumberingEditor({
   onExport,
   onBack,
   isExporting,
+  batchName,
+  onBatchNameChange,
+  onRegenerateFileNames,
 }: NumberingEditorProps) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const selected = images[selectedIdx] ?? null;
@@ -242,71 +251,123 @@ export function NumberingEditor({
             Refresh Numbering
           </button>
 
-          {/* Thumbnail list */}
+          {/* ── File Naming ── */}
+          <div
+            className="flex flex-col gap-2 pt-4"
+            style={{ borderTop: "1px solid hsl(var(--border))" }}
+          >
+            <div className="flex items-center gap-1.5">
+              <FileText size={12} style={{ color: "hsl(var(--primary))" }} />
+              <label className="label-mono">File Naming</label>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>Batch Name</label>
+              <input
+                type="text"
+                value={batchName}
+                onChange={(e) => onBatchNameChange(e.target.value)}
+                placeholder="e.g. MathExam"
+                className="crop-input w-full px-3 py-2 text-sm"
+                style={{ textAlign: "left" }}
+              />
+            </div>
+            <button
+              onClick={onRegenerateFileNames}
+              className="btn-secondary px-3 py-1.5 text-sm w-full"
+            >
+              Regenerate File Names
+            </button>
+          </div>
+
+          {/* Thumbnail list with file names */}
           <div className="flex flex-col gap-2 mt-2">
             <label className="label-mono">Images</label>
-            <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto">
-              {images.map((img, i) => (
-                <button
-                  key={img.id}
-                  draggable
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
-                  onDragLeave={() => setDragOverIdx(null)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragIdx !== null && dragIdx !== i) {
-                      const reordered = [...images];
-                      const [moved] = reordered.splice(dragIdx, 1);
-                      reordered.splice(i, 0, moved);
-                      onReorder(reordered);
-                      setSelectedIdx(i);
-                    }
-                    setDragIdx(null);
-                    setDragOverIdx(null);
-                  }}
-                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
-                  onClick={() => setSelectedIdx(i)}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded text-xs transition-colors text-left"
-                  style={{
-                    background: i === selectedIdx ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))",
-                    border: `1px solid ${dragOverIdx === i ? "hsl(var(--primary))" : i === selectedIdx ? "hsl(var(--primary) / 0.3)" : "hsl(var(--border))"}`,
-                    color: "hsl(var(--foreground))",
-                    opacity: dragIdx === i ? 0.5 : 1,
-                  }}
-                >
-                  <GripVertical size={12} className="shrink-0 opacity-40" style={{ color: "hsl(var(--muted-foreground))" }} />
-                  <img
-                    src={img.previewUrl}
-                    alt=""
-                    className="w-10 h-8 object-cover rounded"
-                    style={{ border: "1px solid hsl(var(--border))" }}
-                  />
-                  <span className="font-medium truncate flex-1">{img.label || `(no label)`}</span>
-                  {img.label && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onImageUpdate(img.id, { label: "" });
-                        // Renumber remaining labeled images
-                        let num = config.startNumber;
-                        images.forEach((other) => {
-                          if (other.id === img.id) return; // skip the one being cleared
-                          if (other.label) {
-                            onImageUpdate(other.id, { label: `${config.prefix}${num}` });
-                            num++;
-                          }
-                        });
-                      }}
-                      className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
-                      title="Remove label"
-                    >
-                      <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
-                    </button>
-                  )}
-                </button>
-              ))}
+            <div className="flex flex-col gap-1.5 max-h-[400px] overflow-y-auto">
+              {images.map((img, i) => {
+                const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
+                const fullName = buildFullFileName(batchName, img.fileName, ext);
+                return (
+                  <div
+                    key={img.id}
+                    draggable
+                    onDragStart={() => setDragIdx(i)}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+                    onDragLeave={() => setDragOverIdx(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragIdx !== null && dragIdx !== i) {
+                        const reordered = [...images];
+                        const [moved] = reordered.splice(dragIdx, 1);
+                        reordered.splice(i, 0, moved);
+                        onReorder(reordered);
+                        setSelectedIdx(i);
+                      }
+                      setDragIdx(null);
+                      setDragOverIdx(null);
+                    }}
+                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                    onClick={() => setSelectedIdx(i)}
+                    className="flex flex-col gap-1 px-2.5 py-2 rounded text-xs transition-colors cursor-pointer"
+                    style={{
+                      background: i === selectedIdx ? "hsl(var(--primary) / 0.1)" : "hsl(var(--muted))",
+                      border: `1px solid ${dragOverIdx === i ? "hsl(var(--primary))" : i === selectedIdx ? "hsl(var(--primary) / 0.3)" : "hsl(var(--border))"}`,
+                      color: "hsl(var(--foreground))",
+                      opacity: dragIdx === i ? 0.5 : 1,
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <GripVertical size={12} className="shrink-0 opacity-40" style={{ color: "hsl(var(--muted-foreground))" }} />
+                      <img
+                        src={img.previewUrl}
+                        alt=""
+                        className="w-10 h-8 object-cover rounded"
+                        style={{ border: "1px solid hsl(var(--border))" }}
+                      />
+                      <span className="font-medium truncate flex-1">{img.label || `(no label)`}</span>
+                      {img.label && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onImageUpdate(img.id, { label: "" });
+                            let num = config.startNumber;
+                            images.forEach((other) => {
+                              if (other.id === img.id) return;
+                              if (other.label) {
+                                onImageUpdate(other.id, { label: `${config.prefix}${num}` });
+                                num++;
+                              }
+                            });
+                          }}
+                          className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
+                          title="Remove label"
+                        >
+                          <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        </button>
+                      )}
+                    </div>
+                    {/* File name row */}
+                    <div className="flex items-center gap-1 pl-5">
+                      <FileText size={10} style={{ color: "hsl(var(--muted-foreground))" }} />
+                      <input
+                        type="text"
+                        value={img.fileName}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onImageUpdate(img.id, { fileName: e.target.value });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 bg-transparent text-[10px] px-1 py-0.5 rounded outline-none border-none truncate"
+                        style={{
+                          color: "hsl(var(--muted-foreground))",
+                          borderBottom: "1px dashed hsl(var(--border))",
+                        }}
+                        title={`Full name: ${fullName}`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </aside>

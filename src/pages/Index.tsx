@@ -12,6 +12,7 @@ import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValu
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage } from "@/lib/burnText";
+import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
@@ -48,6 +49,7 @@ export default function Index() {
     position: "top-left",
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
+  const [batchName, setBatchName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -333,6 +335,7 @@ export default function Index() {
             label: `${numberingConfig.prefix}${counter}`,
             labelX: 0.02,
             labelY: 0.02,
+            fileName: "",
           });
           counter++;
         }
@@ -350,10 +353,15 @@ export default function Index() {
           label: `${numberingConfig.prefix}${counter}`,
           labelX: 0.02,
           labelY: 0.02,
+          fileName: "",
         });
         counter++;
       }
     }
+
+    // Auto-generate file names based on labels
+    const fileNames = generateFileNames(numbered);
+    numbered.forEach((img, i) => { img.fileName = fileNames[i]; });
 
     setNumberedImages(numbered);
     setNumberingMode(true);
@@ -388,21 +396,24 @@ export default function Index() {
         }
         burnedBlobs.push(blob);
         const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
-        folder?.file(`${img.label || `image_${i + 1}`}${ext}`, blob);
+        const fullName = buildFullFileName(batchName, img.fileName, ext);
+        folder?.file(fullName, blob);
       }
 
       if (numberedImages.length === 1) {
         const ext = burnedBlobs[0].type === "image/png" ? ".png" : burnedBlobs[0].type === "image/webp" ? ".webp" : ".jpg";
-        saveAs(burnedBlobs[0], `${numberedImages[0].label || "image"}${ext}`);
+        const fullName = buildFullFileName(batchName, numberedImages[0].fileName, ext);
+        saveAs(burnedBlobs[0], fullName);
       } else {
         const zipBlob = await zip.generateAsync({ type: "blob" });
-        saveAs(zipBlob, "numbered_images.zip");
+        const zipName = batchName ? `${batchName}.zip` : "numbered_images.zip";
+        saveAs(zipBlob, zipName);
       }
     } catch (err) {
       console.error("Export failed:", err);
     }
     setIsNumberExporting(false);
-  }, [numberedImages, numberingConfig]);
+  }, [numberedImages, numberingConfig, batchName]);
 
   const exitNumberingMode = useCallback(() => {
     numberedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
@@ -527,6 +538,14 @@ export default function Index() {
             onExport={handleNumberedExport}
             onBack={exitNumberingMode}
             isExporting={isNumberExporting}
+            batchName={batchName}
+            onBatchNameChange={setBatchName}
+            onRegenerateFileNames={() => {
+              const fileNames = generateFileNames(numberedImages);
+              numberedImages.forEach((img, i) => {
+                updateNumberedImage(img.id, { fileName: fileNames[i] });
+              });
+            }}
           />
         ) : images.length > 0 && selectedEntry && selectedSize ? (
           <>
