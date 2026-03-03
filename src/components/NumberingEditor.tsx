@@ -257,6 +257,19 @@ export function NumberingEditor({
             Refresh Numbering
           </button>
 
+          {/* Clear all numbering */}
+          <button
+            onClick={() => {
+              images.forEach((img) => {
+                onImageUpdate(img.id, { label: "", fileLabel: "", labelX: 0, labelY: 0 });
+              });
+            }}
+            className="btn-secondary px-3 py-2 text-sm w-full flex items-center justify-center gap-1.5"
+          >
+            <X size={13} />
+            Clear All Numbering
+          </button>
+
           {/* ── File Naming ── */}
           <div
             className="flex flex-col gap-2 pt-4"
