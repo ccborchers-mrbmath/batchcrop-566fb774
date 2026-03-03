@@ -106,7 +106,7 @@ export function NumberingEditor({
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Config sidebar */}
+        {/* Config sidebar – scrolls independently */}
         <aside
           className="w-72 shrink-0 border-r flex flex-col overflow-y-auto p-5 gap-5"
           style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
@@ -301,7 +301,7 @@ export function NumberingEditor({
           {/* Thumbnail list with file names */}
           <div className="flex flex-col gap-2 mt-2">
             <label className="label-mono">Images</label>
-            <div className="flex flex-col gap-1.5 max-h-[400px] overflow-y-auto">
+            <div className="flex flex-col gap-1.5">
               {images.map((img, i) => {
                 const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
                 const fullName = buildFullFileName(batchName, img.fileName, ext);
@@ -423,7 +423,7 @@ export function NumberingEditor({
           </div>
         </aside>
 
-        {/* Main preview */}
+        {/* Main preview – scrolls independently */}
         <div className="flex-1 overflow-y-auto p-6">
           {selected ? (
             <NumberedImagePreview
