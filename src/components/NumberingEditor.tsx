@@ -105,7 +105,7 @@ export function NumberingEditor({
         </button>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0">
         {/* Config sidebar – scrolls independently */}
         <aside
           className="w-72 shrink-0 border-r flex flex-col overflow-y-auto p-5 gap-5"
