@@ -11,10 +11,13 @@ export interface NumberedImage {
   previewUrl: string;
   naturalWidth: number;
   naturalHeight: number;
+  /** Text burned onto the image (empty = no text burned) */
   label: string;
   /** Position as fraction 0-1 of image dimensions */
   labelX: number;
   labelY: number;
+  /** Label used for file naming logic (independent of burned text) */
+  fileLabel: string;
   /** Individual file name part (without batch prefix or extension) */
   fileName: string;
 }
@@ -118,7 +121,8 @@ export function NumberingEditor({
                 const newPrefix = e.target.value;
                 onConfigChange({ ...config, prefix: newPrefix });
                 images.forEach((img, i) => {
-                  onImageUpdate(img.id, { label: `${newPrefix}${config.startNumber + i}` });
+                  const newLabel = `${newPrefix}${config.startNumber + i}`;
+                  onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
               placeholder="e.g. Q"
@@ -136,7 +140,8 @@ export function NumberingEditor({
                 const newStart = parseInt(e.target.value) || 0;
                 onConfigChange({ ...config, startNumber: newStart });
                 images.forEach((img, i) => {
-                  onImageUpdate(img.id, { label: `${config.prefix}${newStart + i}` });
+                  const newLabel = `${config.prefix}${newStart + i}`;
+                  onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
               className="crop-input w-full px-3 py-2 text-sm"
@@ -240,6 +245,7 @@ export function NumberingEditor({
                 if (img.label === "") return; // skip unlabeled images
                 onImageUpdate(img.id, {
                   label: `${config.prefix}${num}`,
+                  fileLabel: `${config.prefix}${num}`,
                   labelX: preset.x,
                   labelY: preset.y,
                 });
@@ -323,7 +329,18 @@ export function NumberingEditor({
                         className="w-10 h-8 object-cover rounded"
                         style={{ border: "1px solid hsl(var(--border))" }}
                       />
-                      <span className="font-medium truncate flex-1">{img.label || `(no label)`}</span>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <Type size={9} style={{ color: img.label ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                          <span className="font-medium truncate text-[11px]">{img.label || `(no text)`}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <FileText size={9} style={{ color: img.fileLabel ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                          <span className="truncate text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            {img.fileLabel || `(no file label)`}
+                          </span>
+                        </div>
+                      </div>
                       {img.label && (
                         <button
                           type="button"
@@ -340,30 +357,51 @@ export function NumberingEditor({
                             });
                           }}
                           className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
-                          title="Remove label"
+                          title="Remove burned text (keeps file label)"
                         >
                           <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
                         </button>
                       )}
                     </div>
-                    {/* File name row */}
-                    <div className="flex items-center gap-1 pl-5">
-                      <FileText size={10} style={{ color: "hsl(var(--muted-foreground))" }} />
-                      <input
-                        type="text"
-                        value={img.fileName}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onImageUpdate(img.id, { fileName: e.target.value });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 bg-transparent text-[10px] px-1 py-0.5 rounded outline-none border-none truncate"
-                        style={{
-                          color: "hsl(var(--muted-foreground))",
-                          borderBottom: "1px dashed hsl(var(--border))",
-                        }}
-                        title={`Full name: ${fullName}`}
-                      />
+                    {/* File label + file name row */}
+                    <div className="flex flex-col gap-1 pl-5">
+                      <div className="flex items-center gap-1">
+                        <Pencil size={9} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        <input
+                          type="text"
+                          value={img.fileLabel}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            onImageUpdate(img.id, { fileLabel: e.target.value });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          placeholder="file label"
+                          className="flex-1 bg-transparent text-[10px] px-1 py-0.5 rounded outline-none border-none truncate"
+                          style={{
+                            color: "hsl(var(--foreground))",
+                            borderBottom: "1px dashed hsl(var(--border))",
+                          }}
+                          title="File label (drives file naming groups)"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <FileText size={9} style={{ color: "hsl(var(--muted-foreground))" }} />
+                        <input
+                          type="text"
+                          value={img.fileName}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            onImageUpdate(img.id, { fileName: e.target.value });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 bg-transparent text-[10px] px-1 py-0.5 rounded outline-none border-none truncate"
+                          style={{
+                            color: "hsl(var(--muted-foreground))",
+                            borderBottom: "1px dashed hsl(var(--border))",
+                          }}
+                          title={`Full name: ${fullName}`}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
