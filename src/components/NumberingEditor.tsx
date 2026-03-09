@@ -76,6 +76,28 @@ export function NumberingEditor({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
+  // When a label is changed, cascade numbering to subsequent labeled images
+  const handleLabelChangeWithCascade = useCallback((idx: number, newLabel: string) => {
+    // Update this image's label and fileLabel
+    onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
+
+    // Try to parse a trailing number (with optional prefix) to cascade
+    const match = newLabel.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      let num = parseInt(match[2]) + 1;
+      for (let j = idx + 1; j < images.length; j++) {
+        if (images[j].label) {
+          const cascaded = `${prefix}${num}`;
+          onImageUpdate(images[j].id, { label: cascaded, fileLabel: cascaded });
+          num++;
+        }
+      }
+    }
+    // Regenerate file names after cascade
+    setTimeout(() => onRegenerateFileNames(), 0);
+  }, [images, onImageUpdate, onRegenerateFileNames]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top bar */}
