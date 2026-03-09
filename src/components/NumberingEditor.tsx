@@ -686,7 +686,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
                     ref={inputRef}
                     type="text"
                     value={image.label}
-                    onChange={(e) => onUpdate({ label: e.target.value })}
+                    onChange={(e) => onLabelChange(e.target.value)}
                     onBlur={() => setEditingLabel(false)}
                     onKeyDown={(e) => { if (e.key === "Enter") setEditingLabel(false); }}
                     className="bg-transparent outline-none border-none p-0 m-0"
