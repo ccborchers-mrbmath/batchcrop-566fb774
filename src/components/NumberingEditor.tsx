@@ -527,7 +527,7 @@ interface NumberedImagePreviewProps {
   onLabelChange: (newLabel: string) => void;
 }
 
-function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewProps) {
+function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: NumberedImagePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
