@@ -524,6 +524,7 @@ interface NumberedImagePreviewProps {
   image: NumberedImage;
   config: NumberingConfig;
   onUpdate: (updates: Partial<NumberedImage>) => void;
+  onLabelChange: (newLabel: string) => void;
 }
 
 function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewProps) {
