@@ -76,6 +76,28 @@ export function NumberingEditor({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
+  // When a label is changed, cascade numbering to subsequent labeled images
+  const handleLabelChangeWithCascade = useCallback((idx: number, newLabel: string) => {
+    // Update this image's label and fileLabel
+    onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
+
+    // Try to parse a trailing number (with optional prefix) to cascade
+    const match = newLabel.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      let num = parseInt(match[2]) + 1;
+      for (let j = idx + 1; j < images.length; j++) {
+        if (images[j].label) {
+          const cascaded = `${prefix}${num}`;
+          onImageUpdate(images[j].id, { label: cascaded, fileLabel: cascaded });
+          num++;
+        }
+      }
+    }
+    // Regenerate file names after cascade
+    setTimeout(() => onRegenerateFileNames(), 0);
+  }, [images, onImageUpdate, onRegenerateFileNames]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top bar */}
@@ -430,6 +452,7 @@ export function NumberingEditor({
               image={selected}
               config={config}
               onUpdate={(updates) => onImageUpdate(selected.id, updates)}
+              onLabelChange={(newLabel) => handleLabelChangeWithCascade(selectedIdx, newLabel)}
             />
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -501,9 +524,10 @@ interface NumberedImagePreviewProps {
   image: NumberedImage;
   config: NumberingConfig;
   onUpdate: (updates: Partial<NumberedImage>) => void;
+  onLabelChange: (newLabel: string) => void;
 }
 
-function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewProps) {
+function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: NumberedImagePreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
@@ -662,7 +686,7 @@ function NumberedImagePreview({ image, config, onUpdate }: NumberedImagePreviewP
                     ref={inputRef}
                     type="text"
                     value={image.label}
-                    onChange={(e) => onUpdate({ label: e.target.value })}
+                    onChange={(e) => onLabelChange(e.target.value)}
                     onBlur={() => setEditingLabel(false)}
                     onKeyDown={(e) => { if (e.key === "Enter") setEditingLabel(false); }}
                     className="bg-transparent outline-none border-none p-0 m-0"
