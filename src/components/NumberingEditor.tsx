@@ -452,6 +452,7 @@ export function NumberingEditor({
               image={selected}
               config={config}
               onUpdate={(updates) => onImageUpdate(selected.id, updates)}
+              onLabelChange={(newLabel) => handleLabelChangeWithCascade(selectedIdx, newLabel)}
             />
           ) : (
             <div className="flex items-center justify-center h-full">
