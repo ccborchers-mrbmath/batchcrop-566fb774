@@ -74,7 +74,7 @@ export function ImageCard({
   const hasAnyCrop = cropTop > 0 || cropRight > 0 || cropBottom > 0 || cropLeft > 0;
 
   const overlayBase: React.CSSProperties = {
-    background: "hsl(var(--primary) / 0.35)",
+    background: cropMode === "whiteout" ? "white" : "hsl(var(--primary) / 0.35)",
     position: "absolute",
     pointerEvents: "none",
   };
