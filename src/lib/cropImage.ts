@@ -5,6 +5,67 @@ export interface CropValues {
   left: number;
 }
 
+export type CropMode = "crop" | "whiteout";
+
+export async function whiteOutImageFile(
+  file: File,
+  crop: CropValues
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const srcW = img.naturalWidth;
+      const srcH = img.naturalHeight;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = srcW;
+      canvas.height = srcH;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+
+      // Draw the full image
+      ctx.drawImage(img, 0, 0);
+
+      // White out the edges
+      ctx.fillStyle = "#ffffff";
+      if (crop.top > 0) ctx.fillRect(0, 0, srcW, crop.top);
+      if (crop.bottom > 0) ctx.fillRect(0, srcH - crop.bottom, srcW, crop.bottom);
+      if (crop.left > 0) ctx.fillRect(0, 0, crop.left, srcH);
+      if (crop.right > 0) ctx.fillRect(srcW - crop.right, 0, crop.right, srcH);
+
+      const mime =
+        file.type === "image/png"  ? "image/png"  :
+        file.type === "image/webp" ? "image/webp" :
+        file.type && file.type !== "" ? "image/jpeg" :
+        "image/png";
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Canvas toBlob failed"));
+        },
+        mime,
+        1.0
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+
+    img.src = url;
+  });
+}
+
 export async function cropImageFile(
   file: File,
   crop: CropValues
