@@ -133,8 +133,8 @@ export function CropPreviewEditor({
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
 
-  const overlayColor = "hsl(var(--primary) / 0.25)";
-  const handleColor = "hsl(var(--primary))";
+  const overlayColor = cropMode === "whiteout" ? "white" : "hsl(var(--primary) / 0.25)";
+  const handleColor = cropMode === "whiteout" ? "hsl(var(--muted-foreground) / 0.5)" : "hsl(var(--primary))";
 
   return (
     <div className="flex flex-col gap-3">

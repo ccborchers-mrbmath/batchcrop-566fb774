@@ -703,6 +703,7 @@ export default function Index() {
                     naturalWidth={selectedSize.w}
                     naturalHeight={selectedSize.h}
                     crop={crop}
+                    cropMode={cropMode}
                     onChange={setCrop}
                     onRemove={() => removeImage(selectedEntry.id)}
                     onPrev={selectedIdx > 0 ? goPrev : undefined}
