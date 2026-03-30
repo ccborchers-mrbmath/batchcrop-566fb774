@@ -320,7 +320,7 @@ export default function Index() {
 
     for (const entry of images) {
       const croppedBlob = hasCrop
-        ? await cropImageFile(entry.file, crop)
+        ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
         : entry.file;
 
       if (entry.regions.length > 0) {
