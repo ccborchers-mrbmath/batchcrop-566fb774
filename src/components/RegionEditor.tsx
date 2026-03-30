@@ -19,6 +19,8 @@ interface RegionEditorProps {
   onNext?: () => void;
   currentIndex?: number;
   totalImages?: number;
+  regionMode: RegionMode;
+  onRegionModeChange: (mode: RegionMode) => void;
 }
 
 interface DrawState {
