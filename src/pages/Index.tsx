@@ -29,6 +29,7 @@ export default function Index() {
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
+  const [cropMode, setCropMode] = useState<CropMode>("crop");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
