@@ -445,7 +445,7 @@ export function RegionEditor({
                     width: d.width,
                     height: d.height,
                     border: `2px solid ${regionColor}`,
-                    background: `${regionColor.replace(")", " / 0.08)")}`,
+                    background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
                     pointerEvents: "none",
                   }}
                 >
