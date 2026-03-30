@@ -30,6 +30,7 @@ export function CropPreviewEditor({
   naturalWidth,
   naturalHeight,
   crop,
+  cropMode = "crop",
   onChange,
   onRemove,
   onPrev,
