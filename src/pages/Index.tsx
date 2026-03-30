@@ -331,15 +331,19 @@ export default function Index() {
         : entry.file;
 
       if (entry.regions.length > 0) {
-        for (const region of entry.regions) {
-          const blob = await extractRegion(croppedBlob, region);
-          const url = URL.createObjectURL(blob);
+        if (regionMode === "whiteout") {
+          // White out regions → single image
+          const whited = await whiteOutRegions(croppedBlob, entry.regions);
+          const size = naturalSizes[entry.id];
+          const w = size ? (cropMode === "whiteout" ? size.w : Math.max(1, size.w - crop.left - crop.right)) : 800;
+          const h = size ? (cropMode === "whiteout" ? size.h : Math.max(1, size.h - crop.top - crop.bottom)) : 600;
+          const url = URL.createObjectURL(whited);
           numbered.push({
-            id: `${entry.id}-${region.id}`,
-            blob,
+            id: entry.id,
+            blob: whited,
             previewUrl: url,
-            naturalWidth: region.w,
-            naturalHeight: region.h,
+            naturalWidth: w,
+            naturalHeight: h,
             label: `${numberingConfig.prefix}${counter}`,
             labelX: 0.02,
             labelY: 0.02,
@@ -347,6 +351,24 @@ export default function Index() {
             fileName: "",
           });
           counter++;
+        } else {
+          for (const region of entry.regions) {
+            const blob = await extractRegion(croppedBlob, region);
+            const url = URL.createObjectURL(blob);
+            numbered.push({
+              id: `${entry.id}-${region.id}`,
+              blob,
+              previewUrl: url,
+              naturalWidth: region.w,
+              naturalHeight: region.h,
+              label: `${numberingConfig.prefix}${counter}`,
+              labelX: 0.02,
+              labelY: 0.02,
+              fileLabel: `${numberingConfig.prefix}${counter}`,
+              fileName: "",
+            });
+            counter++;
+          }
         }
       } else {
         const size = naturalSizes[entry.id];
