@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { X, ImageIcon } from "lucide-react";
+import { CropMode } from "@/lib/cropImage";
 
 interface ImageCardProps {
   file: File;
