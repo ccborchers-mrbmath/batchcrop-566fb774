@@ -11,6 +11,7 @@ interface CropPreviewEditorProps {
   naturalWidth: number;
   naturalHeight: number;
   crop: CropValues;
+  cropMode?: CropMode;
   onChange: (crop: CropValues) => void;
   onRemove?: () => void;
   onPrev?: () => void;
