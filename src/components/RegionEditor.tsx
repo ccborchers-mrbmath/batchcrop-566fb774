@@ -346,6 +346,36 @@ export function RegionEditor({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Region mode toggle */}
+          <div
+            className="flex items-center rounded overflow-hidden"
+            style={{ border: "1px solid hsl(var(--border))" }}
+          >
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: regionMode === "extract" ? "hsl(var(--primary))" : "transparent",
+                color: regionMode === "extract" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onRegionModeChange("extract")}
+              title="Extract regions as separate images"
+            >
+              <Scissors size={12} />
+              Extract
+            </button>
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: regionMode === "whiteout" ? "hsl(var(--primary))" : "transparent",
+                color: regionMode === "whiteout" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onRegionModeChange("whiteout")}
+              title="White out selected regions"
+            >
+              <Square size={12} />
+              White out
+            </button>
+          </div>
           <ZoomControls
             scale={zoom.scale}
             min={MIN_SCALE}

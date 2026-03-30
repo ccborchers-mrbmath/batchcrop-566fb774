@@ -755,6 +755,8 @@ export default function Index() {
                     onNext={selectedIdx < images.length - 1 ? goNext : undefined}
                     currentIndex={selectedIdx}
                     totalImages={images.length}
+                    regionMode={regionMode}
+                    onRegionModeChange={setRegionMode}
                   />
                 )}
               </div>
