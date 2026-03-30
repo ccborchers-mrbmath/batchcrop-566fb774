@@ -8,7 +8,7 @@ import { RegionEditor } from "@/components/RegionEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
 import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
-import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region } from "@/lib/cropImage";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, whiteOutImageFile } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage } from "@/lib/burnText";
