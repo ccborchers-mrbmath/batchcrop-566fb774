@@ -21,6 +21,7 @@ interface ImageCardProps {
   onDragEnd?: () => void;
   onDrop?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
+  cropMode?: CropMode;
 }
 
 export function ImageCard({
