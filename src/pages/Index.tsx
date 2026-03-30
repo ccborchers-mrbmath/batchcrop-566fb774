@@ -217,7 +217,7 @@ export default function Index() {
       images.map(async (entry) => {
         // Step 1: Apply batch crop
         const croppedBlob = hasCrop
-          ? await cropImageFile(entry.file, crop)
+          ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
           : entry.file;
 
         if (entry.regions.length > 0) {
