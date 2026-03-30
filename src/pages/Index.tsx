@@ -794,6 +794,7 @@ export default function Index() {
                           setDragOverId(null);
                         }}
                         isDragOver={dragOverId === img.id && draggedId !== img.id}
+                        cropMode={cropMode}
                       />
                     ))}
                   </div>
