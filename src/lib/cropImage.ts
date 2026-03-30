@@ -183,6 +183,50 @@ export async function extractRegion(source: Blob, region: Region): Promise<Blob>
   });
 }
 
+export type RegionMode = "extract" | "whiteout";
+
+/**
+ * White out multiple regions on a single image (fill them with solid white).
+ * Returns the full image with the specified regions painted white.
+ */
+export async function whiteOutRegions(source: Blob, regions: Region[]): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(source);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("No canvas context")); return; }
+
+      ctx.drawImage(img, 0, 0);
+      ctx.fillStyle = "#ffffff";
+      for (const r of regions) {
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+      }
+
+      const t = (source as File).type;
+      const mime =
+        t === "image/png"  ? "image/png"  :
+        t === "image/webp" ? "image/webp" :
+        t && t !== "" ? "image/jpeg" :
+        "image/png";
+
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")),
+        mime,
+        1.0
+      );
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.src = url;
+  });
+}
+
 export function regionFileName(original: string, index: number): string {
   const dot = original.lastIndexOf(".");
   const base = dot === -1 ? original : original.slice(0, dot);
