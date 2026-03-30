@@ -63,6 +63,8 @@ export function RegionEditor({
   onNext,
   currentIndex,
   totalImages,
+  regionMode,
+  onRegionModeChange,
 }: RegionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
