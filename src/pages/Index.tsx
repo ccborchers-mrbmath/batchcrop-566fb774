@@ -222,11 +222,17 @@ export default function Index() {
           : entry.file;
 
         if (entry.regions.length > 0) {
-          // Extract each region from the batch-cropped result
-          const regionBlobs = await Promise.all(
-            entry.regions.map((r) => extractRegion(croppedBlob, r))
-          );
-          return { id: entry.id, type: "regions" as const, blobs: regionBlobs, file: entry.file };
+          if (regionMode === "whiteout") {
+            // White out the regions and return a single image
+            const whited = await whiteOutRegions(croppedBlob, entry.regions);
+            return { id: entry.id, type: "single" as const, blob: whited, name: croppedFileName(entry.file.name) };
+          } else {
+            // Extract each region from the batch-cropped result
+            const regionBlobs = await Promise.all(
+              entry.regions.map((r) => extractRegion(croppedBlob, r))
+            );
+            return { id: entry.id, type: "regions" as const, blobs: regionBlobs, file: entry.file };
+          }
         } else {
           // No regions — just the batch crop
           return {
