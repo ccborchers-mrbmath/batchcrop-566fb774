@@ -496,7 +496,7 @@ export function RegionEditor({
                 width: liveRect.width,
                 height: liveRect.height,
                 border: `2px dashed ${regionColor}`,
-                background: `${regionColor.replace(")", " / 0.08)")}`,
+                background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
               }}
             />
           )}
