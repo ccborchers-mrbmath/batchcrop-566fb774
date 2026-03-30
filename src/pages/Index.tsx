@@ -608,7 +608,7 @@ export default function Index() {
                   <div className="flex flex-col gap-4">
                     <div>
                       <p className="label-mono mb-4">Apply to all {images.length} image{images.length !== 1 ? "s" : ""}</p>
-                      <CropControls values={crop} onChange={setCrop} />
+                      <CropControls values={crop} onChange={setCrop} mode={cropMode} onModeChange={setCropMode} />
                     </div>
 
                     {imagesWithRegions > 0 && (
