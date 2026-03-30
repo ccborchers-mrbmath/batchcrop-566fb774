@@ -8,7 +8,7 @@ import { RegionEditor } from "@/components/RegionEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
 import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
-import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, whiteOutImageFile } from "@/lib/cropImage";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage } from "@/lib/burnText";
@@ -30,6 +30,7 @@ export default function Index() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
   const [cropMode, setCropMode] = useState<CropMode>("crop");
+  const [regionMode, setRegionMode] = useState<RegionMode>("extract");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
@@ -221,11 +222,17 @@ export default function Index() {
           : entry.file;
 
         if (entry.regions.length > 0) {
-          // Extract each region from the batch-cropped result
-          const regionBlobs = await Promise.all(
-            entry.regions.map((r) => extractRegion(croppedBlob, r))
-          );
-          return { id: entry.id, type: "regions" as const, blobs: regionBlobs, file: entry.file };
+          if (regionMode === "whiteout") {
+            // White out the regions and return a single image
+            const whited = await whiteOutRegions(croppedBlob, entry.regions);
+            return { id: entry.id, type: "single" as const, blob: whited, name: croppedFileName(entry.file.name) };
+          } else {
+            // Extract each region from the batch-cropped result
+            const regionBlobs = await Promise.all(
+              entry.regions.map((r) => extractRegion(croppedBlob, r))
+            );
+            return { id: entry.id, type: "regions" as const, blobs: regionBlobs, file: entry.file };
+          }
         } else {
           // No regions — just the batch crop
           return {
@@ -324,15 +331,19 @@ export default function Index() {
         : entry.file;
 
       if (entry.regions.length > 0) {
-        for (const region of entry.regions) {
-          const blob = await extractRegion(croppedBlob, region);
-          const url = URL.createObjectURL(blob);
+        if (regionMode === "whiteout") {
+          // White out regions → single image
+          const whited = await whiteOutRegions(croppedBlob, entry.regions);
+          const size = naturalSizes[entry.id];
+          const w = size ? (cropMode === "whiteout" ? size.w : Math.max(1, size.w - crop.left - crop.right)) : 800;
+          const h = size ? (cropMode === "whiteout" ? size.h : Math.max(1, size.h - crop.top - crop.bottom)) : 600;
+          const url = URL.createObjectURL(whited);
           numbered.push({
-            id: `${entry.id}-${region.id}`,
-            blob,
+            id: entry.id,
+            blob: whited,
             previewUrl: url,
-            naturalWidth: region.w,
-            naturalHeight: region.h,
+            naturalWidth: w,
+            naturalHeight: h,
             label: `${numberingConfig.prefix}${counter}`,
             labelX: 0.02,
             labelY: 0.02,
@@ -340,6 +351,24 @@ export default function Index() {
             fileName: "",
           });
           counter++;
+        } else {
+          for (const region of entry.regions) {
+            const blob = await extractRegion(croppedBlob, region);
+            const url = URL.createObjectURL(blob);
+            numbered.push({
+              id: `${entry.id}-${region.id}`,
+              blob,
+              previewUrl: url,
+              naturalWidth: region.w,
+              naturalHeight: region.h,
+              label: `${numberingConfig.prefix}${counter}`,
+              labelX: 0.02,
+              labelY: 0.02,
+              fileLabel: `${numberingConfig.prefix}${counter}`,
+              fileName: "",
+            });
+            counter++;
+          }
         }
       } else {
         const size = naturalSizes[entry.id];
@@ -726,6 +755,8 @@ export default function Index() {
                     onNext={selectedIdx < images.length - 1 ? goNext : undefined}
                     currentIndex={selectedIdx}
                     totalImages={images.length}
+                    regionMode={regionMode}
+                    onRegionModeChange={setRegionMode}
                   />
                 )}
               </div>
