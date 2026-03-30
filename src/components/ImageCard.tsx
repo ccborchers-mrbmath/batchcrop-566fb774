@@ -43,6 +43,7 @@ export function ImageCard({
   onDragEnd,
   onDrop,
   isDragOver = false,
+  cropMode = "crop",
 }: ImageCardProps) {
 
   const sizeKB = (file.size / 1024).toFixed(0);
