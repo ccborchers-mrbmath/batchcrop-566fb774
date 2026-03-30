@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Link } from "lucide-react";
-import { CropValues } from "@/lib/cropImage";
+import { Link, Scissors, Square } from "lucide-react";
+import { CropValues, CropMode } from "@/lib/cropImage";
 
-export type { CropValues };
+export type { CropValues, CropMode };
 
 interface CropControlsProps {
   values: CropValues;
   onChange: (values: CropValues) => void;
+  mode: CropMode;
+  onModeChange: (mode: CropMode) => void;
 }
 
-export function CropControls({ values, onChange }: CropControlsProps) {
+export function CropControls({ values, onChange, mode, onModeChange }: CropControlsProps) {
   const [linked, setLinked] = useState(true);
 
   const handleChange = (edge: keyof CropValues, raw: string) => {
@@ -23,6 +25,32 @@ export function CropControls({ values, onChange }: CropControlsProps) {
 
   return (
     <div className="space-y-4">
+      {/* Mode toggle */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onModeChange("crop")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+            mode === "crop"
+              ? "bg-primary/20 text-primary border border-primary/30"
+              : "btn-secondary text-sm"
+          }`}
+        >
+          <Scissors size={12} />
+          Crop
+        </button>
+        <button
+          onClick={() => onModeChange("whiteout")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+            mode === "whiteout"
+              ? "bg-primary/20 text-primary border border-primary/30"
+              : "btn-secondary text-sm"
+          }`}
+        >
+          <Square size={12} />
+          White out
+        </button>
+      </div>
+
       {/* Linked toggle */}
       <div className="flex items-center gap-2">
         <button

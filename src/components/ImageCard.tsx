@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { X, ImageIcon } from "lucide-react";
+import { CropMode } from "@/lib/cropImage";
 
 interface ImageCardProps {
   file: File;
@@ -20,6 +21,7 @@ interface ImageCardProps {
   onDragEnd?: () => void;
   onDrop?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
+  cropMode?: CropMode;
 }
 
 export function ImageCard({
@@ -41,6 +43,7 @@ export function ImageCard({
   onDragEnd,
   onDrop,
   isDragOver = false,
+  cropMode = "crop",
 }: ImageCardProps) {
 
   const sizeKB = (file.size / 1024).toFixed(0);
@@ -71,7 +74,7 @@ export function ImageCard({
   const hasAnyCrop = cropTop > 0 || cropRight > 0 || cropBottom > 0 || cropLeft > 0;
 
   const overlayBase: React.CSSProperties = {
-    background: "hsl(var(--primary) / 0.35)",
+    background: cropMode === "whiteout" ? "white" : "hsl(var(--primary) / 0.35)",
     position: "absolute",
     pointerEvents: "none",
   };

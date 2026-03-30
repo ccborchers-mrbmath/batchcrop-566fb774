@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { CropValues } from "@/lib/cropImage";
+import { CropValues, CropMode } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
@@ -11,6 +11,7 @@ interface CropPreviewEditorProps {
   naturalWidth: number;
   naturalHeight: number;
   crop: CropValues;
+  cropMode?: CropMode;
   onChange: (crop: CropValues) => void;
   onRemove?: () => void;
   onPrev?: () => void;
@@ -29,6 +30,7 @@ export function CropPreviewEditor({
   naturalWidth,
   naturalHeight,
   crop,
+  cropMode = "crop",
   onChange,
   onRemove,
   onPrev,
@@ -131,8 +133,8 @@ export function CropPreviewEditor({
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
 
-  const overlayColor = "hsl(var(--primary) / 0.25)";
-  const handleColor = "hsl(var(--primary))";
+  const overlayColor = cropMode === "whiteout" ? "white" : "hsl(var(--primary) / 0.25)";
+  const handleColor = cropMode === "whiteout" ? "hsl(var(--muted-foreground) / 0.5)" : "hsl(var(--primary))";
 
   return (
     <div className="flex flex-col gap-3">

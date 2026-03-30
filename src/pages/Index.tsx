@@ -8,7 +8,7 @@ import { RegionEditor } from "@/components/RegionEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
 import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
-import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region } from "@/lib/cropImage";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, whiteOutImageFile } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage } from "@/lib/burnText";
@@ -29,6 +29,7 @@ export default function Index() {
   const [images, setImages] = useState<ImageEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [crop, setCrop] = useState<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
+  const [cropMode, setCropMode] = useState<CropMode>("crop");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
@@ -216,7 +217,7 @@ export default function Index() {
       images.map(async (entry) => {
         // Step 1: Apply batch crop
         const croppedBlob = hasCrop
-          ? await cropImageFile(entry.file, crop)
+          ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
           : entry.file;
 
         if (entry.regions.length > 0) {
@@ -319,7 +320,7 @@ export default function Index() {
 
     for (const entry of images) {
       const croppedBlob = hasCrop
-        ? await cropImageFile(entry.file, crop)
+        ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
         : entry.file;
 
       if (entry.regions.length > 0) {
@@ -607,7 +608,7 @@ export default function Index() {
                   <div className="flex flex-col gap-4">
                     <div>
                       <p className="label-mono mb-4">Apply to all {images.length} image{images.length !== 1 ? "s" : ""}</p>
-                      <CropControls values={crop} onChange={setCrop} />
+                      <CropControls values={crop} onChange={setCrop} mode={cropMode} onModeChange={setCropMode} />
                     </div>
 
                     {imagesWithRegions > 0 && (
@@ -702,6 +703,7 @@ export default function Index() {
                     naturalWidth={selectedSize.w}
                     naturalHeight={selectedSize.h}
                     crop={crop}
+                    cropMode={cropMode}
                     onChange={setCrop}
                     onRemove={() => removeImage(selectedEntry.id)}
                     onPrev={selectedIdx > 0 ? goPrev : undefined}
@@ -792,6 +794,7 @@ export default function Index() {
                           setDragOverId(null);
                         }}
                         isDragOver={dragOverId === img.id && draggedId !== img.id}
+                        cropMode={cropMode}
                       />
                     ))}
                   </div>
