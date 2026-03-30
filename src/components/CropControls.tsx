@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Link } from "lucide-react";
-import { CropValues } from "@/lib/cropImage";
+import { Link, Scissors, Square } from "lucide-react";
+import { CropValues, CropMode } from "@/lib/cropImage";
 
-export type { CropValues };
+export type { CropValues, CropMode };
 
 interface CropControlsProps {
   values: CropValues;
   onChange: (values: CropValues) => void;
+  mode: CropMode;
+  onModeChange: (mode: CropMode) => void;
 }
 
 export function CropControls({ values, onChange }: CropControlsProps) {
