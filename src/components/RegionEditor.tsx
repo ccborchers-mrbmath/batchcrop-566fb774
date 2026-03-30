@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { Region } from "@/lib/cropImage";
+import { Trash2, X, ChevronLeft, ChevronRight, Scissors, Square } from "lucide-react";
+import { Region, RegionMode } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
