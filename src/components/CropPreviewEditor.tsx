@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { CropValues } from "@/lib/cropImage";
+import { CropValues, CropMode } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
