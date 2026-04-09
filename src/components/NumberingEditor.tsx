@@ -691,7 +691,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
           {/* Pixel grid overlay */}
           {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
-          {imgSize.w > 0 && image.label && (
+          {imgSize.w > 0 && image.label && config.mode === "manual" && (
             <div
               className="absolute flex items-start"
               style={{
