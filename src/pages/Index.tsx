@@ -11,7 +11,7 @@ import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/Nu
 import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
-import { burnTextOntoImage } from "@/lib/burnText";
+import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
 import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
