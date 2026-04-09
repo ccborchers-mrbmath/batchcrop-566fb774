@@ -239,54 +239,58 @@ export function NumberingEditor({
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="label-mono">Padding (px)</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["top", "right", "bottom", "left"] as const).map((side) => (
-                <div key={side} className="flex flex-col gap-0.5">
-                  <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
-                  <NumberStepper
-                    value={config.padding[side]}
-                    min={0}
-                    max={100}
-                    onChange={(v) => onConfigChange({
-                      ...config,
-                      padding: { ...config.padding, [side]: v },
-                    })}
-                    small
-                  />
+          {config.mode === "manual" && (
+            <>
+              {/* Padding */}
+              <div className="flex flex-col gap-2">
+                <label className="label-mono">Padding (px)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["top", "right", "bottom", "left"] as const).map((side) => (
+                    <div key={side} className="flex flex-col gap-0.5">
+                      <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
+                      <NumberStepper
+                        value={config.padding[side]}
+                        min={0}
+                        max={100}
+                        onChange={(v) => onConfigChange({
+                          ...config,
+                          padding: { ...config.padding, [side]: v },
+                        })}
+                        small
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
 
-          {/* Default position */}
-          <div className="flex flex-col gap-2">
-            <label className="label-mono">Default Position</label>
-            <div className="flex gap-1.5">
-              {(["top-left", "top-center", "top-right"] as const).map((pos) => (
-                <button
-                  key={pos}
-                  onClick={() => {
-                    onConfigChange({ ...config, position: pos });
-                    // Apply to all images
-                    const preset = POSITION_PRESETS[pos];
-                    images.forEach((img) => {
-                      onImageUpdate(img.id, { labelX: preset.x, labelY: preset.y });
-                    });
-                  }}
-                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors"
-                  style={{
-                    background: config.position === pos ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
-                    border: `1px solid ${config.position === pos ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
-                    color: config.position === pos ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                  }}
-                >
-                  {pos === "top-left" ? "Left" : pos === "top-center" ? "Center" : "Right"}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Default position */}
+              <div className="flex flex-col gap-2">
+                <label className="label-mono">Default Position</label>
+                <div className="flex gap-1.5">
+                  {(["top-left", "top-center", "top-right"] as const).map((pos) => (
+                    <button
+                      key={pos}
+                      onClick={() => {
+                        onConfigChange({ ...config, position: pos });
+                        const preset = POSITION_PRESETS[pos];
+                        images.forEach((img) => {
+                          onImageUpdate(img.id, { labelX: preset.x, labelY: preset.y });
+                        });
+                      }}
+                      className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                      style={{
+                        background: config.position === pos ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+                        border: `1px solid ${config.position === pos ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
+                        color: config.position === pos ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {pos === "top-left" ? "Left" : pos === "top-center" ? "Center" : "Right"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Apply numbering button */}
           <button
