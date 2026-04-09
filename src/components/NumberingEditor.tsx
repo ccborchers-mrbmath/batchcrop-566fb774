@@ -209,7 +209,36 @@ export function NumberingEditor({
             <label htmlFor="bold-toggle" className="label-mono cursor-pointer">Bold</label>
           </div>
 
-          {/* Padding */}
+          {/* Numbering mode toggle */}
+          <div className="flex flex-col gap-2">
+            <label className="label-mono">Numbering Mode</label>
+            <div className="flex gap-1.5">
+              {([
+                { key: "manual" as const, label: "Manual", icon: MousePointer },
+                { key: "auto-detect" as const, label: "Auto-detect", icon: ScanSearch },
+              ]).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => onConfigChange({ ...config, mode: key })}
+                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
+                  style={{
+                    background: config.mode === key ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+                    border: `1px solid ${config.mode === key ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
+                    color: config.mode === key ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                  }}
+                >
+                  <Icon size={12} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            {config.mode === "auto-detect" && (
+              <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Scans for original question numbers in the top-left, erases them, and draws the new number in the same position.
+              </p>
+            )}
+          </div>
+
           <div className="flex flex-col gap-2">
             <label className="label-mono">Padding (px)</label>
             <div className="grid grid-cols-2 gap-2">
