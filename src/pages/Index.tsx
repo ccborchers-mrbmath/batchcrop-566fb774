@@ -11,7 +11,7 @@ import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/Nu
 import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
-import { burnTextOntoImage } from "@/lib/burnText";
+import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
 import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
@@ -49,6 +49,7 @@ export default function Index() {
     bold: true,
     padding: { top: 0, right: 8, bottom: 6, left: 0 },
     position: "top-left",
+    mode: "manual",
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
   const [batchName, setBatchName] = useState("");
@@ -410,17 +411,26 @@ export default function Index() {
         const img = numberedImages[i];
         let blob = img.blob;
         if (img.label) {
-          console.log(`Burning label "${img.label}" at (${img.labelX}, ${img.labelY}) fontSize=${numberingConfig.fontSize}`);
+          console.log(`Burning label "${img.label}" mode=${numberingConfig.mode}`);
           try {
-            blob = await burnTextOntoImage(blob, {
-              text: img.label,
-              x: img.labelX,
-              y: img.labelY,
-              fontFamily: numberingConfig.fontFamily,
-              fontSize: numberingConfig.fontSize,
-              bold: numberingConfig.bold,
-              padding: numberingConfig.padding,
-            });
+            if (numberingConfig.mode === "auto-detect") {
+              blob = await detectAndReplaceNumber(
+                blob,
+                img.label,
+                numberingConfig.fontFamily,
+                numberingConfig.bold,
+              );
+            } else {
+              blob = await burnTextOntoImage(blob, {
+                text: img.label,
+                x: img.labelX,
+                y: img.labelY,
+                fontFamily: numberingConfig.fontFamily,
+                fontSize: numberingConfig.fontSize,
+                bold: numberingConfig.bold,
+                padding: numberingConfig.padding,
+              });
+            }
             console.log(`Burn succeeded, blob size: ${blob.size}`);
           } catch (err) {
             console.error(`Burn failed for image ${i}:`, err);

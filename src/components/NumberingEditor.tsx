@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
@@ -30,6 +30,7 @@ export interface NumberingConfig {
   bold: boolean;
   padding: { top: number; right: number; bottom: number; left: number }; // px relative to image
   position: "top-left" | "top-center" | "top-right";
+  mode: "manual" | "auto-detect"; // manual = drag labels; auto-detect = scan & replace
 }
 
 const FONT_OPTIONS = [
@@ -185,16 +186,18 @@ export function NumberingEditor({
             </select>
           </div>
 
-          {/* Font size */}
-          <div className="flex flex-col gap-2">
-            <label className="label-mono">Font Size (px)</label>
-            <NumberStepper
-              value={config.fontSize}
-              min={8}
-              max={200}
-              onChange={(v) => onConfigChange({ ...config, fontSize: v })}
-            />
-          </div>
+          {/* Font size (manual mode only) */}
+          {config.mode === "manual" && (
+            <div className="flex flex-col gap-2">
+              <label className="label-mono">Font Size (px)</label>
+              <NumberStepper
+                value={config.fontSize}
+                min={8}
+                max={200}
+                onChange={(v) => onConfigChange({ ...config, fontSize: v })}
+              />
+            </div>
+          )}
 
           {/* Bold toggle */}
           <div className="flex items-center gap-2">
@@ -208,55 +211,88 @@ export function NumberingEditor({
             <label htmlFor="bold-toggle" className="label-mono cursor-pointer">Bold</label>
           </div>
 
-          {/* Padding */}
+          {/* Numbering mode toggle */}
           <div className="flex flex-col gap-2">
-            <label className="label-mono">Padding (px)</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["top", "right", "bottom", "left"] as const).map((side) => (
-                <div key={side} className="flex flex-col gap-0.5">
-                  <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
-                  <NumberStepper
-                    value={config.padding[side]}
-                    min={0}
-                    max={100}
-                    onChange={(v) => onConfigChange({
-                      ...config,
-                      padding: { ...config.padding, [side]: v },
-                    })}
-                    small
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Default position */}
-          <div className="flex flex-col gap-2">
-            <label className="label-mono">Default Position</label>
+            <label className="label-mono">Numbering Mode</label>
             <div className="flex gap-1.5">
-              {(["top-left", "top-center", "top-right"] as const).map((pos) => (
+              {([
+                { key: "manual" as const, label: "Manual", icon: MousePointer },
+                { key: "auto-detect" as const, label: "Auto-detect", icon: ScanSearch },
+              ]).map(({ key, label, icon: Icon }) => (
                 <button
-                  key={pos}
-                  onClick={() => {
-                    onConfigChange({ ...config, position: pos });
-                    // Apply to all images
-                    const preset = POSITION_PRESETS[pos];
-                    images.forEach((img) => {
-                      onImageUpdate(img.id, { labelX: preset.x, labelY: preset.y });
-                    });
-                  }}
-                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                  key={key}
+                  onClick={() => onConfigChange({ ...config, mode: key })}
+                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-1"
                   style={{
-                    background: config.position === pos ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
-                    border: `1px solid ${config.position === pos ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
-                    color: config.position === pos ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                    background: config.mode === key ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+                    border: `1px solid ${config.mode === key ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
+                    color: config.mode === key ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
                   }}
                 >
-                  {pos === "top-left" ? "Left" : pos === "top-center" ? "Center" : "Right"}
+                  <Icon size={12} />
+                  {label}
                 </button>
               ))}
             </div>
+            {config.mode === "auto-detect" && (
+              <p className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                Scans for original question numbers in the top-left, erases them, and draws the new number in the same position.
+              </p>
+            )}
           </div>
+
+          {config.mode === "manual" && (
+            <>
+              {/* Padding */}
+              <div className="flex flex-col gap-2">
+                <label className="label-mono">Padding (px)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["top", "right", "bottom", "left"] as const).map((side) => (
+                    <div key={side} className="flex flex-col gap-0.5">
+                      <span className="text-[10px] uppercase" style={{ color: "hsl(var(--muted-foreground))" }}>{side}</span>
+                      <NumberStepper
+                        value={config.padding[side]}
+                        min={0}
+                        max={100}
+                        onChange={(v) => onConfigChange({
+                          ...config,
+                          padding: { ...config.padding, [side]: v },
+                        })}
+                        small
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Default position */}
+              <div className="flex flex-col gap-2">
+                <label className="label-mono">Default Position</label>
+                <div className="flex gap-1.5">
+                  {(["top-left", "top-center", "top-right"] as const).map((pos) => (
+                    <button
+                      key={pos}
+                      onClick={() => {
+                        onConfigChange({ ...config, position: pos });
+                        const preset = POSITION_PRESETS[pos];
+                        images.forEach((img) => {
+                          onImageUpdate(img.id, { labelX: preset.x, labelY: preset.y });
+                        });
+                      }}
+                      className="flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                      style={{
+                        background: config.position === pos ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted))",
+                        border: `1px solid ${config.position === pos ? "hsl(var(--primary) / 0.4)" : "hsl(var(--border))"}`,
+                        color: config.position === pos ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                      }}
+                    >
+                      {pos === "top-left" ? "Left" : pos === "top-center" ? "Center" : "Right"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Apply numbering button */}
           <button
@@ -607,7 +643,9 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="label-mono">
-          Drag the label to reposition · double-click to edit text
+          {config.mode === "auto-detect"
+            ? "Auto-detect mode: original number will be found and replaced on export"
+            : "Drag the label to reposition · double-click to edit text"}
         </p>
         <div className="flex items-center gap-3">
           <GridToggle show={showGrid} onToggle={() => setShowGrid((v) => !v)} />
@@ -653,7 +691,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
           {/* Pixel grid overlay */}
           {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
-          {imgSize.w > 0 && image.label && (
+          {imgSize.w > 0 && image.label && config.mode === "manual" && (
             <div
               className="absolute flex items-start"
               style={{
