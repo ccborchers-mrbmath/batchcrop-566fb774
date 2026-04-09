@@ -643,7 +643,9 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="label-mono">
-          Drag the label to reposition · double-click to edit text
+          {config.mode === "auto-detect"
+            ? "Auto-detect mode: original number will be found and replaced on export"
+            : "Drag the label to reposition · double-click to edit text"}
         </p>
         <div className="flex items-center gap-3">
           <GridToggle show={showGrid} onToggle={() => setShowGrid((v) => !v)} />
