@@ -186,16 +186,18 @@ export function NumberingEditor({
             </select>
           </div>
 
-          {/* Font size */}
-          <div className="flex flex-col gap-2">
-            <label className="label-mono">Font Size (px)</label>
-            <NumberStepper
-              value={config.fontSize}
-              min={8}
-              max={200}
-              onChange={(v) => onConfigChange({ ...config, fontSize: v })}
-            />
-          </div>
+          {/* Font size (manual mode only) */}
+          {config.mode === "manual" && (
+            <div className="flex flex-col gap-2">
+              <label className="label-mono">Font Size (px)</label>
+              <NumberStepper
+                value={config.fontSize}
+                min={8}
+                max={200}
+                onChange={(v) => onConfigChange({ ...config, fontSize: v })}
+              />
+            </div>
+          )}
 
           {/* Bold toggle */}
           <div className="flex items-center gap-2">
