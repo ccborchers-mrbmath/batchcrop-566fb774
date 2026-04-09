@@ -30,6 +30,7 @@ export interface NumberingConfig {
   bold: boolean;
   padding: { top: number; right: number; bottom: number; left: number }; // px relative to image
   position: "top-left" | "top-center" | "top-right";
+  mode: "manual" | "auto-detect"; // manual = drag labels; auto-detect = scan & replace
 }
 
 const FONT_OPTIONS = [
