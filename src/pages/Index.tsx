@@ -411,17 +411,26 @@ export default function Index() {
         const img = numberedImages[i];
         let blob = img.blob;
         if (img.label) {
-          console.log(`Burning label "${img.label}" at (${img.labelX}, ${img.labelY}) fontSize=${numberingConfig.fontSize}`);
+          console.log(`Burning label "${img.label}" mode=${numberingConfig.mode}`);
           try {
-            blob = await burnTextOntoImage(blob, {
-              text: img.label,
-              x: img.labelX,
-              y: img.labelY,
-              fontFamily: numberingConfig.fontFamily,
-              fontSize: numberingConfig.fontSize,
-              bold: numberingConfig.bold,
-              padding: numberingConfig.padding,
-            });
+            if (numberingConfig.mode === "auto-detect") {
+              blob = await detectAndReplaceNumber(
+                blob,
+                img.label,
+                numberingConfig.fontFamily,
+                numberingConfig.bold,
+              );
+            } else {
+              blob = await burnTextOntoImage(blob, {
+                text: img.label,
+                x: img.labelX,
+                y: img.labelY,
+                fontFamily: numberingConfig.fontFamily,
+                fontSize: numberingConfig.fontSize,
+                bold: numberingConfig.bold,
+                padding: numberingConfig.padding,
+              });
+            }
             console.log(`Burn succeeded, blob size: ${blob.size}`);
           } catch (err) {
             console.error(`Burn failed for image ${i}:`, err);
