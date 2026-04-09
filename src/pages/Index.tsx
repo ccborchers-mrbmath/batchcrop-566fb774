@@ -49,6 +49,7 @@ export default function Index() {
     bold: true,
     padding: { top: 0, right: 8, bottom: 6, left: 0 },
     position: "top-left",
+    mode: "manual",
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
   const [batchName, setBatchName] = useState("");
