@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
