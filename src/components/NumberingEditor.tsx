@@ -573,6 +573,8 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
   const [editingLabel, setEditingLabel] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [autoPreviewUrl, setAutoPreviewUrl] = useState<string | null>(null);
+  const [autoPreviewLoading, setAutoPreviewLoading] = useState(false);
 
   const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
     useZoom(containerRef);
