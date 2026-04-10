@@ -677,7 +677,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
       <div className="flex items-center justify-between">
         <p className="label-mono">
           {config.mode === "auto-detect"
-            ? "Auto-detect mode: original number will be found and replaced on export"
+            ? "Auto-detect mode: preview shows detected number replaced"
             : "Drag the label to reposition · double-click to edit text"}
         </p>
         <div className="flex items-center gap-3">
