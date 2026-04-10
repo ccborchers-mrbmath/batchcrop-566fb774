@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 import { buildFullFileName } from "@/lib/generateFileNames";
+import { detectAndReplaceNumber } from "@/lib/burnText";
 
 export interface NumberedImage {
   id: string;
@@ -572,6 +573,8 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
   const [editingLabel, setEditingLabel] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [autoPreviewUrl, setAutoPreviewUrl] = useState<string | null>(null);
+  const [autoPreviewLoading, setAutoPreviewLoading] = useState(false);
 
   const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } =
     useZoom(containerRef);
@@ -586,6 +589,36 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
     if (imgRef.current) obs.observe(imgRef.current);
     return () => obs.disconnect();
   }, [updateImgSize]);
+
+  // Auto-detect preview: generate a preview image when in auto-detect mode
+  useEffect(() => {
+    if (config.mode !== "auto-detect" || !image.label) {
+      setAutoPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      return;
+    }
+    let cancelled = false;
+    setAutoPreviewLoading(true);
+    detectAndReplaceNumber(image.blob, image.label, config.fontFamily, config.bold)
+      .then((blob) => {
+        if (cancelled) return;
+        setAutoPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(blob);
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Auto-detect preview failed:", err);
+      })
+      .finally(() => { if (!cancelled) setAutoPreviewLoading(false); });
+    return () => { cancelled = true; };
+  }, [config.mode, config.fontFamily, config.bold, image.blob, image.label]);
+
+  // Cleanup auto preview URL on unmount
+  useEffect(() => {
+    return () => {
+      setAutoPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
+  }, []);
 
   // Font size scaled to display
   const displayFontSize = imgSize.w > 0
@@ -644,7 +677,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
       <div className="flex items-center justify-between">
         <p className="label-mono">
           {config.mode === "auto-detect"
-            ? "Auto-detect mode: original number will be found and replaced on export"
+            ? "Auto-detect mode: preview shows detected number replaced"
             : "Drag the label to reposition · double-click to edit text"}
         </p>
         <div className="flex items-center gap-3">
@@ -682,12 +715,17 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
         >
           <img
             ref={imgRef}
-            src={image.previewUrl}
+            src={(config.mode === "auto-detect" && autoPreviewUrl) ? autoPreviewUrl : image.previewUrl}
             alt=""
             draggable={false}
             className="block w-full"
             onLoad={updateImgSize}
           />
+          {config.mode === "auto-detect" && autoPreviewLoading && (
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(var(--background) / 0.5)" }}>
+              <span className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Generating preview…</span>
+            </div>
+          )}
           {/* Pixel grid overlay */}
           {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
