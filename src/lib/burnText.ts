@@ -119,10 +119,12 @@ interface BoundingBox {
  */
 function detectNumberBoundingBox(
   ctx: CanvasRenderingContext2D,
-  canvasWidth: number
+  canvasWidth: number,
+  canvasHeight: number
 ): BoundingBox | null {
-  const scanWidth = Math.min(250, canvasWidth);
-  const scanHeight = 160;
+  // Scale scan region proportionally – scan top ~15% of image
+  const scanWidth = Math.min(Math.round(canvasWidth * 0.15), canvasWidth);
+  const scanHeight = Math.min(Math.round(canvasHeight * 0.12), canvasHeight);
   const darkThreshold = 180;
 
   try {
@@ -150,7 +152,10 @@ function detectNumberBoundingBox(
     const width = maxX - minX;
     const height = maxY - minY;
 
-    if (width > 200 || height > 120) {
+    // If detected region is too large relative to scan area, try cluster detection
+    const maxExpectedW = scanWidth * 0.8;
+    const maxExpectedH = scanHeight * 0.75;
+    if (width > maxExpectedW || height > maxExpectedH) {
       return detectNumberCluster(data, scanWidth, scanHeight, darkThreshold);
     }
 
@@ -225,23 +230,25 @@ export async function detectAndReplaceNumber(
 
       ctx.drawImage(img, 0, 0);
 
-      const bbox = detectNumberBoundingBox(ctx, img.width);
+      const bbox = detectNumberBoundingBox(ctx, canvas.width, canvas.height);
 
       let eraseWidth: number, eraseHeight: number;
       let numberX: number, numberBaseline: number;
-      const fontSize = 48;
+      // Scale font size relative to image height (targeting ~1.4% of height)
+      const fontSize = Math.round(canvas.height * 0.014);
 
       if (bbox) {
-        const padX = 15, padY = 10;
+        const padX = Math.round(fontSize * 0.3), padY = Math.round(fontSize * 0.2);
         eraseWidth = bbox.x + bbox.width + padX;
         eraseHeight = bbox.y + bbox.height + padY;
-        numberX = bbox.x + bbox.width + 4;
-        numberBaseline = bbox.y + bbox.height + 10;
+        numberX = bbox.x + bbox.width + Math.round(fontSize * 0.08);
+        numberBaseline = bbox.y + bbox.height + Math.round(fontSize * 0.2);
       } else {
-        eraseWidth = 255;
-        eraseHeight = 155;
-        numberX = 228;
-        numberBaseline = 105;
+        // Fallback: scale to image dimensions
+        eraseWidth = Math.round(canvas.width * 0.1);
+        eraseHeight = Math.round(canvas.height * 0.045);
+        numberX = Math.round(eraseWidth * 0.9);
+        numberBaseline = Math.round(eraseHeight * 0.7);
       }
 
       // Erase original number
