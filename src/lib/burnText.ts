@@ -122,88 +122,117 @@ function detectNumberBoundingBox(
   canvasWidth: number,
   canvasHeight: number
 ): BoundingBox | null {
-  // Scale scan region proportionally – scan top ~15% of image
-  const scanWidth = Math.min(Math.round(canvasWidth * 0.15), canvasWidth);
-  const scanHeight = Math.min(Math.round(canvasHeight * 0.12), canvasHeight);
+  // Scan a generous top-left region
+  const scanWidth = Math.min(Math.round(canvasWidth * 0.25), canvasWidth);
+  const scanHeight = Math.min(Math.round(canvasHeight * 0.15), canvasHeight);
   const darkThreshold = 180;
 
   try {
     const imageData = ctx.getImageData(0, 0, scanWidth, scanHeight);
     const data = imageData.data;
 
-    let minX = scanWidth, minY = scanHeight, maxX = 0, maxY = 0;
-    let foundDark = false;
+    const isDark = (x: number, y: number) => {
+      const idx = (y * scanWidth + x) * 4;
+      return data[idx] < darkThreshold && data[idx + 1] < darkThreshold && data[idx + 2] < darkThreshold;
+    };
 
-    for (let y = 0; y < scanHeight; y++) {
-      for (let x = 0; x < scanWidth; x++) {
-        const idx = (y * scanWidth + x) * 4;
-        if (data[idx] < darkThreshold && data[idx + 1] < darkThreshold && data[idx + 2] < darkThreshold) {
-          if (x < minX) minX = x;
+    // Build per-column dark pixel counts and row ranges
+    const colInfo: { count: number; minY: number; maxY: number }[] = [];
+    for (let x = 0; x < scanWidth; x++) {
+      let count = 0, minY = scanHeight, maxY = 0;
+      for (let y = 0; y < scanHeight; y++) {
+        if (isDark(x, y)) {
+          count++;
           if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
           if (y > maxY) maxY = y;
-          foundDark = true;
         }
+      }
+      colInfo.push({ count, minY, maxY });
+    }
+
+    // Find the first column with dark pixels (start of number)
+    let startCol = -1;
+    for (let x = 0; x < scanWidth; x++) {
+      if (colInfo[x].count > 0) { startCol = x; break; }
+    }
+    if (startCol < 0) return null;
+
+    // Walk right from startCol, allowing small gaps (up to gapTolerance empty columns)
+    // but stopping at a large gap which indicates transition to body text
+    const gapTolerance = Math.max(8, Math.round(canvasWidth * 0.008));
+    let endCol = startCol;
+    let gapRun = 0;
+
+    for (let x = startCol + 1; x < scanWidth; x++) {
+      if (colInfo[x].count > 0) {
+        endCol = x;
+        gapRun = 0;
+      } else {
+        gapRun++;
+        if (gapRun > gapTolerance) break;
       }
     }
 
-    if (!foundDark || (maxX - minX) < 5 || (maxY - minY) < 5) return null;
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-
-    // If detected region is too large relative to scan area, try cluster detection
-    const maxExpectedW = scanWidth * 0.8;
-    const maxExpectedH = scanHeight * 0.75;
-    if (width > maxExpectedW || height > maxExpectedH) {
-      return detectNumberCluster(data, scanWidth, scanHeight, darkThreshold);
+    // Compute bounding box from startCol..endCol
+    let minY = scanHeight, maxY = 0;
+    for (let x = startCol; x <= endCol; x++) {
+      if (colInfo[x].count > 0) {
+        if (colInfo[x].minY < minY) minY = colInfo[x].minY;
+        if (colInfo[x].maxY > maxY) maxY = colInfo[x].maxY;
+      }
     }
 
-    return { x: minX, y: minY, width, height };
+    const width = endCol - startCol;
+    const height = maxY - minY;
+    if (width < 3 || height < 3) return null;
+
+    // Sanity: if the detected region is wider than ~5% of canvas, it's probably
+    // picking up body text. Try to narrow using row-gap analysis.
+    const maxNumberWidth = canvasWidth * 0.05;
+    if (width > maxNumberWidth) {
+      return narrowByRowGap(data, scanWidth, startCol, endCol, minY, maxY, darkThreshold, canvasWidth);
+    }
+
+    return { x: startCol, y: minY, width, height };
   } catch {
     return null;
   }
 }
 
-function detectNumberCluster(
+/**
+ * If the column-gap approach captured too wide a region (number + nearby text),
+ * try to find just the number by looking for vertical row-density clusters.
+ */
+function narrowByRowGap(
   data: Uint8ClampedArray,
   scanWidth: number,
-  scanHeight: number,
-  darkThreshold: number
+  startCol: number,
+  endCol: number,
+  minY: number,
+  maxY: number,
+  darkThreshold: number,
+  canvasWidth: number
 ): BoundingBox | null {
-  const rowCounts: number[] = [];
-  for (let y = 0; y < scanHeight; y++) {
-    let count = 0;
-    for (let x = 0; x < Math.min(scanWidth, 200); x++) {
-      const idx = (y * scanWidth + x) * 4;
-      if (data[idx] < darkThreshold && data[idx + 1] < darkThreshold && data[idx + 2] < darkThreshold) count++;
-    }
-    rowCounts.push(count);
-  }
+  // Look only at the first ~3% of canvas width from startCol
+  const narrowEnd = Math.min(startCol + Math.round(canvasWidth * 0.03), endCol);
 
-  const windowSize = 50;
-  let bestStart = 0, bestSum = 0;
-  for (let start = 0; start < scanHeight - windowSize; start++) {
-    let sum = 0;
-    for (let i = start; i < start + windowSize; i++) sum += rowCounts[i];
-    if (sum > bestSum) { bestSum = sum; bestStart = start; }
-  }
-  if (bestSum < 20) return null;
-
-  let minX = scanWidth, maxX = 0, minY = scanHeight, maxY = 0;
-  for (let y = bestStart; y < bestStart + windowSize && y < scanHeight; y++) {
-    for (let x = 0; x < Math.min(scanWidth, 200); x++) {
+  let nMinY = maxY, nMaxY = minY, nMaxX = startCol;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = startCol; x <= narrowEnd; x++) {
       const idx = (y * scanWidth + x) * 4;
       if (data[idx] < darkThreshold && data[idx + 1] < darkThreshold && data[idx + 2] < darkThreshold) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
+        if (y < nMinY) nMinY = y;
+        if (y > nMaxY) nMaxY = y;
+        if (x > nMaxX) nMaxX = x;
       }
     }
   }
-  if (maxX <= minX || maxY <= minY) return null;
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+
+  const w = nMaxX - startCol;
+  const h = nMaxY - nMinY;
+  if (w < 3 || h < 3) return null;
+
+  return { x: startCol, y: nMinY, width: w, height: h };
 }
 
 /**
