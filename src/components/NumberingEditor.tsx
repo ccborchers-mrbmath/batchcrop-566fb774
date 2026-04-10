@@ -715,12 +715,17 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
         >
           <img
             ref={imgRef}
-            src={image.previewUrl}
+            src={(config.mode === "auto-detect" && autoPreviewUrl) ? autoPreviewUrl : image.previewUrl}
             alt=""
             draggable={false}
             className="block w-full"
             onLoad={updateImgSize}
           />
+          {config.mode === "auto-detect" && autoPreviewLoading && (
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(var(--background) / 0.5)" }}>
+              <span className="text-xs font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>Generating preview…</span>
+            </div>
+          )}
           {/* Pixel grid overlay */}
           {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
