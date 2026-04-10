@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 import { buildFullFileName } from "@/lib/generateFileNames";
+import { detectAndReplaceNumber } from "@/lib/burnText";
 
 export interface NumberedImage {
   id: string;
