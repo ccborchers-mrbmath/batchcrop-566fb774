@@ -590,6 +590,36 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
     return () => obs.disconnect();
   }, [updateImgSize]);
 
+  // Auto-detect preview: generate a preview image when in auto-detect mode
+  useEffect(() => {
+    if (config.mode !== "auto-detect" || !image.label) {
+      setAutoPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      return;
+    }
+    let cancelled = false;
+    setAutoPreviewLoading(true);
+    detectAndReplaceNumber(image.blob, image.label, config.fontFamily, config.bold)
+      .then((blob) => {
+        if (cancelled) return;
+        setAutoPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return URL.createObjectURL(blob);
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("Auto-detect preview failed:", err);
+      })
+      .finally(() => { if (!cancelled) setAutoPreviewLoading(false); });
+    return () => { cancelled = true; };
+  }, [config.mode, config.fontFamily, config.bold, image.blob, image.label]);
+
+  // Cleanup auto preview URL on unmount
+  useEffect(() => {
+    return () => {
+      setAutoPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    };
+  }, []);
+
   // Font size scaled to display
   const displayFontSize = imgSize.w > 0
     ? (config.fontSize / image.naturalWidth) * imgSize.w
