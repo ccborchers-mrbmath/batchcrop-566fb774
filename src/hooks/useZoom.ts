@@ -19,11 +19,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
   const clampOffset = useCallback(
     (x: number, y: number, scale: number): { x: number; y: number } => {
       const el = containerRef.current;
-      if (!el || scale <= 1) return { x: 0, y: 0 };
+      if (!el) return { x, y };
       const rect = el.getBoundingClientRect();
-      // Allow panning far enough to reach any edge of the scaled content
-      const maxX = (rect.width * scale) / 2;
-      const maxY = (rect.height * scale) / 2;
+      const maxX = (rect.width * Math.max(scale, 1)) / 2 + rect.width;
+      const maxY = (rect.height * Math.max(scale, 1)) / 2 + rect.height;
       return {
         x: Math.max(-maxX, Math.min(maxX, x)),
         y: Math.max(-maxY, Math.min(maxY, y)),
