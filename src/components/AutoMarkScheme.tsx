@@ -210,7 +210,7 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
             </button>
           </>
         )}
-        {(step === "review" || step === "exporting") && (
+        {(step === "selecting" || step === "review" || step === "exporting") && (
           <button onClick={reset} className="btn-secondary px-3 py-1.5 text-sm">Start over</button>
         )}
       </div>
