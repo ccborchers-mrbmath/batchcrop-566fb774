@@ -121,6 +121,20 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     }
   };
 
+  const updateRegion = (pageIdx: number, regionIdx: number, bbox: { x: number; y: number; w: number; h: number }) => {
+    setDetections((prev) => {
+      const next = prev.map((p, i) => {
+        if (i !== pageIdx) return p;
+        const regions = p.regions.map((r, j) =>
+          j === regionIdx ? { ...r, bbox, manual: true } : r,
+        );
+        return { ...p, regions };
+      });
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
   const removeGroup = (id: string) => {
     setGroups((g) => g.filter((x) => x.id !== id));
   };
