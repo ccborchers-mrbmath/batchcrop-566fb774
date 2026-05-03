@@ -125,7 +125,7 @@ export function groupIntoQuestions(detections: PageDetection[]): QuestionGroup[]
 
       if (wantsContinue && groups.length > 0) {
         const last = groups[groups.length - 1];
-        last.pieces.push({ pageIndex: page.pageIndex, bbox: r.bbox });
+        last.pieces.push({ pageIndex: page.pageIndex, bbox: r.bbox, manual: r.manual });
         if (r.label && (!last.label || /^p\d+_/.test(last.label))) {
           last.label = root ? `Q${root}` : r.label;
         }
@@ -134,7 +134,7 @@ export function groupIntoQuestions(detections: PageDetection[]): QuestionGroup[]
         groups.push({
           id: `${page.pageIndex}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
           label: root ? `Q${root}` : (r.label || `p${page.pageIndex + 1}_${idx + 1}`),
-          pieces: [{ pageIndex: page.pageIndex, bbox: r.bbox }],
+          pieces: [{ pageIndex: page.pageIndex, bbox: r.bbox, manual: r.manual }],
         });
         lastRoot = root;
       }
