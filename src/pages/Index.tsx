@@ -204,7 +204,11 @@ export default function Index() {
   };
 
   const updateRegions = useCallback((id: string, regions: Region[]) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions } : img));
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions, splits: regions.length > 0 ? [] : img.splits } : img));
+  }, []);
+
+  const updateSplits = useCallback((id: string, splits: number[]) => {
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, splits, regions: splits.length > 0 ? [] : img.regions } : img));
   }, []);
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
