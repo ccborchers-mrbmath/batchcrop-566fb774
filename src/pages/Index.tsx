@@ -685,63 +685,134 @@ export default function Index() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <p className="label-mono">
-                      Regions for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
-                    </p>
-                    {selectedEntry.regions.length > 0 && (
-                      <div
-                        className="rounded px-3 py-2 text-xs"
+                    {/* Sub-mode toggle: Regions vs Splits */}
+                    <div
+                      className="flex items-center rounded overflow-hidden"
+                      style={{ border: "1px solid hsl(var(--border))" }}
+                    >
+                      <button
+                        onClick={() => setImageSubMode("regions")}
+                        className="flex-1 px-2 py-1.5 text-xs font-medium transition-colors"
                         style={{
-                          background: "hsl(120 70% 55% / 0.08)",
-                          border: "1px solid hsl(120 70% 55% / 0.25)",
-                          color: "hsl(120 70% 55%)",
+                          background: imageSubMode === "regions" ? "hsl(var(--primary))" : "transparent",
+                          color: imageSubMode === "regions" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
                         }}
                       >
-                        {selectedEntry.regions.length} region{selectedEntry.regions.length !== 1 ? "s" : ""} drawn — batch crop will NOT be downloaded for this image.
-                      </div>
-                    )}
+                        Regions
+                      </button>
+                      <button
+                        onClick={() => setImageSubMode("splits")}
+                        className="flex-1 px-2 py-1.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: imageSubMode === "splits" ? "hsl(var(--primary))" : "transparent",
+                          color: imageSubMode === "splits" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                        }}
+                      >
+                        Split
+                      </button>
+                    </div>
 
-                    {/* Region list (compact) */}
-                    {selectedEntry.regions.length > 0 && (
-                      <div className="flex flex-col gap-1.5">
-                        {selectedEntry.regions.map((r, i) => (
+                    {imageSubMode === "regions" ? (
+                      <>
+                        <p className="label-mono">
+                          Regions for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
+                        </p>
+                        {selectedEntry.splits.length > 0 && (
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            This image has split lines. Adding regions will clear them.
+                          </p>
+                        )}
+                        {selectedEntry.regions.length > 0 && (
                           <div
-                            key={r.id}
-                            className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs"
+                            className="rounded px-3 py-2 text-xs"
                             style={{
-                              background: "hsl(var(--muted))",
-                              border: "1px solid hsl(var(--border))",
+                              background: "hsl(120 70% 55% / 0.08)",
+                              border: "1px solid hsl(120 70% 55% / 0.25)",
+                              color: "hsl(120 70% 55%)",
                             }}
                           >
-                            <span className="font-medium" style={{ color: "hsl(120 70% 55%)" }}>R{i + 1}</span>
-                            <span className="label-mono">{r.w}×{r.h}px</span>
+                            {selectedEntry.regions.length} region{selectedEntry.regions.length !== 1 ? "s" : ""} drawn — batch crop will NOT be downloaded for this image.
+                          </div>
+                        )}
+
+                        {selectedEntry.regions.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            {selectedEntry.regions.map((r, i) => (
+                              <div
+                                key={r.id}
+                                className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs"
+                                style={{
+                                  background: "hsl(var(--muted))",
+                                  border: "1px solid hsl(var(--border))",
+                                }}
+                              >
+                                <span className="font-medium" style={{ color: "hsl(120 70% 55%)" }}>R{i + 1}</span>
+                                <span className="label-mono">{r.w}×{r.h}px</span>
+                                <button
+                                  onClick={() =>
+                                    updateRegions(
+                                      selectedEntry.id,
+                                      selectedEntry.regions.filter((x) => x.id !== r.id)
+                                    )
+                                  }
+                                  className="opacity-60 hover:opacity-100 transition-opacity"
+                                  style={{ color: "hsl(var(--destructive))" }}
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            ))}
                             <button
-                              onClick={() =>
-                                updateRegions(
-                                  selectedEntry.id,
-                                  selectedEntry.regions.filter((x) => x.id !== r.id)
-                                )
-                              }
-                              className="opacity-60 hover:opacity-100 transition-opacity"
-                              style={{ color: "hsl(var(--destructive))" }}
+                              onClick={() => updateRegions(selectedEntry.id, [])}
+                              className="label-mono hover:text-primary transition-colors text-left mt-1"
+                              style={{ color: "hsl(var(--muted-foreground))" }}
                             >
-                              <Trash2 size={11} />
+                              Clear all regions
                             </button>
                           </div>
-                        ))}
-                        <button
-                          onClick={() => updateRegions(selectedEntry.id, [])}
-                          className="label-mono hover:text-primary transition-colors text-left mt-1"
-                          style={{ color: "hsl(var(--muted-foreground))" }}
-                        >
-                          Clear all regions
-                        </button>
-                      </div>
-                    )}
-                    {selectedEntry.regions.length === 0 && (
-                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                        No regions yet. Use the preview to click &amp; drag a rectangle on the image.
-                      </p>
+                        )}
+                        {selectedEntry.regions.length === 0 && (
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            No regions yet. Use the preview to click &amp; drag a rectangle on the image.
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="label-mono">
+                          Split lines for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
+                        </p>
+                        {selectedEntry.regions.length > 0 && (
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            This image has regions. Adding split lines will clear them.
+                          </p>
+                        )}
+                        {selectedEntry.splits.length > 0 ? (
+                          <div
+                            className="rounded px-3 py-2 text-xs"
+                            style={{
+                              background: "hsl(280 80% 60% / 0.1)",
+                              border: "1px solid hsl(280 80% 60% / 0.3)",
+                              color: "hsl(280 80% 60%)",
+                            }}
+                          >
+                            {selectedEntry.splits.length} line{selectedEntry.splits.length !== 1 ? "s" : ""} → will export as {selectedEntry.splits.length + 1} parts.
+                          </div>
+                        ) : (
+                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            Click anywhere on the preview image to add a horizontal split line. Drag to move, hover to remove.
+                          </p>
+                        )}
+                        {selectedEntry.splits.length > 0 && (
+                          <button
+                            onClick={() => updateSplits(selectedEntry.id, [])}
+                            className="label-mono hover:text-primary transition-colors text-left mt-1"
+                            style={{ color: "hsl(var(--muted-foreground))" }}
+                          >
+                            Clear all splits
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
