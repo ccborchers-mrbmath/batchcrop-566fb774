@@ -36,6 +36,7 @@ export default function Index() {
   const [regionMode, setRegionMode] = useState<RegionMode>("extract");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imageSubMode, setImageSubMode] = useState<ImageSubMode>("regions");
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
