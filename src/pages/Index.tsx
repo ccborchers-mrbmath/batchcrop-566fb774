@@ -58,6 +58,7 @@ export default function Index() {
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
   const [batchName, setBatchName] = useState("");
+  const [autoMSMode, setAutoMSMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
