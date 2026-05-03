@@ -13,6 +13,9 @@ import {
   QuestionGroup,
   DetectedRegion,
 } from "@/lib/autoMarkScheme";
+import { useZoom } from "@/hooks/useZoom";
+import { ZoomControls } from "@/components/ZoomControls";
+import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 
 type Step = "idle" | "rendering" | "selecting" | "detecting" | "review" | "exporting";
 
