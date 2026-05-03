@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles } from "lucide-react";
+import { AutoMarkScheme } from "@/components/AutoMarkScheme";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
