@@ -62,9 +62,31 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
         setRenderProgress({ done, total });
       });
       setPages(rendered);
-      setStep("detecting");
-      setDetectProgress({ done: 0, total: rendered.length });
-      const det = await detectAllPages(rendered.map((p) => p.blob), (done, total) => {
+      // Build preview URLs for page selection
+      const urls = rendered.map((p) => URL.createObjectURL(p.blob));
+      setPagePreviews(urls);
+      setExcludedPages(new Set());
+      setStep("selecting");
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Processing failed");
+      setStep("idle");
+    }
+  };
+
+  const runDetection = async () => {
+    const kept = pages
+      .map((p, i) => ({ p, i }))
+      .filter(({ i }) => !excludedPages.has(i));
+    if (!kept.length) {
+      setError("Select at least one page to keep");
+      return;
+    }
+    setStep("detecting");
+    setError("");
+    setDetectProgress({ done: 0, total: kept.length });
+    try {
+      const det = await detectAllPages(kept.map(({ p }) => p.blob), (done, total) => {
         setDetectProgress({ done, total });
       });
       setDetections(det);
@@ -72,9 +94,18 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
       setStep("review");
     } catch (e: any) {
       console.error(e);
-      setError(e?.message || "Processing failed");
-      setStep("idle");
+      setError(e?.message || "Detection failed");
+      setStep("selecting");
     }
+  };
+
+  const togglePageExcluded = (idx: number) => {
+    setExcludedPages((s) => {
+      const next = new Set(s);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
   };
 
   const reDetectPage = async (pageIdx: number) => {
