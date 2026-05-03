@@ -351,7 +351,41 @@ export default function Index() {
         ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
         : entry.file;
 
-      if (entry.regions.length > 0) {
+      if (entry.splits.length > 0) {
+        const slices = await splitImageHorizontally(croppedBlob, entry.splits);
+        const sortedYs = [...entry.splits].map((y) => Math.round(y)).filter((y) => y > 0).sort((a, b) => a - b);
+        // Re-derive piece heights based on the sorted/clamped y list (mirrors splitImageHorizontally)
+        const totalH = (() => {
+          const size = naturalSizes[entry.id];
+          return size ? Math.max(1, size.h - (cropMode === "whiteout" ? 0 : crop.top + crop.bottom)) : 0;
+        })();
+        const totalW = (() => {
+          const size = naturalSizes[entry.id];
+          return size ? (cropMode === "whiteout" ? size.w : Math.max(1, size.w - crop.left - crop.right)) : 0;
+        })();
+        const heights: number[] = [];
+        let prev = 0;
+        for (const y of sortedYs) {
+          if (y < totalH && y > prev) { heights.push(y - prev); prev = y; }
+        }
+        if (totalH > prev) heights.push(totalH - prev);
+        slices.forEach((blob, idx) => {
+          const url = URL.createObjectURL(blob);
+          numbered.push({
+            id: `${entry.id}-split${idx}`,
+            blob,
+            previewUrl: url,
+            naturalWidth: totalW,
+            naturalHeight: heights[idx] ?? 0,
+            label: `${numberingConfig.prefix}${counter}`,
+            labelX: 0.02,
+            labelY: 0.02,
+            fileLabel: `${numberingConfig.prefix}${counter}`,
+            fileName: "",
+          });
+          counter++;
+        });
+      } else if (entry.regions.length > 0) {
         if (regionMode === "whiteout") {
           // White out regions → single image
           const whited = await whiteOutRegions(croppedBlob, entry.regions);
