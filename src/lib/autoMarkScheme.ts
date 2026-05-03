@@ -21,6 +21,7 @@ export interface PageDetection {
 export interface QuestionPiece {
   pageIndex: number;
   bbox: NormBBox; // normalized to that page
+  manual?: boolean;
 }
 export interface QuestionGroup {
   id: string;
