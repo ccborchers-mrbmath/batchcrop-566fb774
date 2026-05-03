@@ -121,15 +121,64 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     }
   };
 
-  const updateRegion = (pageIdx: number, regionIdx: number, bbox: { x: number; y: number; w: number; h: number }) => {
+  // Update only the vertical (y/h) of a single region. Horizontal edges are
+  // linked globally and updated via setAllLeft/setAllRight/shiftAllHorizontal.
+  const updateRegionVertical = (pageIdx: number, regionIdx: number, y: number, h: number) => {
     setDetections((prev) => {
       const next = prev.map((p, i) => {
         if (i !== pageIdx) return p;
         const regions = p.regions.map((r, j) =>
-          j === regionIdx ? { ...r, bbox, manual: true } : r,
+          j === regionIdx ? { ...r, bbox: { ...r.bbox, y, h }, manual: true } : r,
         );
         return { ...p, regions };
       });
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Set the left edge of every region on every page to the same normalized x.
+  const setAllLeft = (xN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const right = r.bbox.x + r.bbox.w;
+          const newX = Math.max(0, Math.min(right - 0.005, xN));
+          return { ...r, bbox: { ...r.bbox, x: newX, w: right - newX }, manual: true };
+        }),
+      }));
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Set the right edge of every region on every page to the same normalized x.
+  const setAllRight = (xN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const left = r.bbox.x;
+          const newRight = Math.max(left + 0.005, Math.min(1, xN));
+          return { ...r, bbox: { ...r.bbox, w: newRight - left }, manual: true };
+        }),
+      }));
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Shift every region horizontally by dxN (preserves widths). Used by "move".
+  const shiftAllHorizontal = (dxN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const newX = Math.max(0, Math.min(1 - r.bbox.w, r.bbox.x + dxN));
+          return { ...r, bbox: { ...r.bbox, x: newX }, manual: true };
+        }),
+      }));
       setGroups(groupIntoQuestions(next));
       return next;
     });
