@@ -19,11 +19,10 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
   const clampOffset = useCallback(
     (x: number, y: number, scale: number): { x: number; y: number } => {
       const el = containerRef.current;
-      if (!el || scale <= 1) return { x: 0, y: 0 };
+      if (!el) return { x, y };
       const rect = el.getBoundingClientRect();
-      // Allow panning far enough to reach any edge of the scaled content
-      const maxX = (rect.width * scale) / 2;
-      const maxY = (rect.height * scale) / 2;
+      const maxX = (rect.width * Math.max(scale, 1)) / 2 + rect.width;
+      const maxY = (rect.height * Math.max(scale, 1)) / 2 + rect.height;
       return {
         x: Math.max(-maxX, Math.min(maxX, x)),
         y: Math.max(-maxY, Math.min(maxY, y)),
@@ -115,18 +114,16 @@ export function useZoom(containerRef: React.RefObject<HTMLDivElement>) {
     return () => el.removeEventListener("wheel", onWheel);
   }, [containerRef, onWheel]);
 
-  // Pan handlers
+  // Pan handlers — allow click-drag panning at any zoom level
   const onPanMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (zoom.scale <= 1) return;
-      // Only pan on primary button, skip if clicking on a handle
       if (e.button !== 0) return;
       isPanning.current = true;
       panStart.current = { x: e.clientX, y: e.clientY };
       panStartOffset.current = { x: zoom.offsetX, y: zoom.offsetY };
       e.currentTarget.setAttribute("data-panning", "true");
     },
-    [zoom.scale, zoom.offsetX, zoom.offsetY]
+    [zoom.offsetX, zoom.offsetY]
   );
 
   useEffect(() => {
