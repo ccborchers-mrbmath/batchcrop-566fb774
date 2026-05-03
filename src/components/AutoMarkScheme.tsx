@@ -457,7 +457,10 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
               regions={currentPageDet.regions}
               onReDetect={() => reDetectPage(selectedPageIdx)}
               pageNum={selectedPageIdx + 1}
-              onRegionChange={(idx, bbox) => updateRegion(selectedPageIdx, idx, bbox)}
+              onRegionVerticalChange={(idx, y, h) => updateRegionVertical(selectedPageIdx, idx, y, h)}
+              onSetAllLeft={setAllLeft}
+              onSetAllRight={setAllRight}
+              onShiftAllHorizontal={shiftAllHorizontal}
             />
           </div>
 
