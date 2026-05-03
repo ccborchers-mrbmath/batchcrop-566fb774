@@ -286,9 +286,12 @@ export async function buildQuestionImage(
       w: Math.round(piece.bbox.w * W),
       h: Math.round(piece.bbox.h * H),
     };
-    // Search window: 3% of page dimension is enough to find an outer table rule.
-    const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
-    const snap = snapToTableBorders(data, rawPx, searchPx);
+    // If user manually adjusted, use the bbox exactly. Otherwise snap to nearest table border.
+    let snap = rawPx;
+    if (!piece.manual) {
+      const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
+      snap = snapToTableBorders(data, rawPx, searchPx);
+    }
 
     const sx = Math.max(0, Math.min(W - 1, snap.x));
     const sy = Math.max(0, Math.min(H - 1, snap.y));
