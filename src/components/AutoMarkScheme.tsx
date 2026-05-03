@@ -590,34 +590,40 @@ function PageWithBoxes({
     const startLeft = start.x;
     const startRight = start.x + start.w;
     const startBottom = start.y + start.h;
-    const snapX = (n: number) => imgDims.nW > 0 ? Math.round(n * imgDims.nW) / imgDims.nW : n;
-    const snapY = (n: number) => imgDims.nH > 0 ? Math.round(n * imgDims.nH) / imgDims.nH : n;
+    // Snap to natural image pixels only when Shift is held; otherwise allow
+    // sub-pixel placement so the border can land exactly on a feature even
+    // when the source image's pixel grid doesn't align with it.
+    const snapX = (n: number, snap: boolean) =>
+      snap && imgDims.nW > 0 ? Math.round(n * imgDims.nW) / imgDims.nW : n;
+    const snapY = (n: number, snap: boolean) =>
+      snap && imgDims.nH > 0 ? Math.round(n * imgDims.nH) / imgDims.nH : n;
 
     let lastDx = 0;
     const onMove = (ev: MouseEvent) => {
       const dxN = (ev.clientX - startX) / dragW;
       const dyN = (ev.clientY - startY) / dragH;
+      const snap = ev.shiftKey;
 
       if (mode === "move") {
-        const nextDx = snapX(dxN);
+        const nextDx = snapX(dxN, snap);
         onShiftAllHorizontal(nextDx - lastDx);
         lastDx = nextDx;
-        let y = snapY(start.y + dyN);
+        let y = snapY(start.y + dyN, snap);
         const h = start.h;
         y = Math.max(0, Math.min(1 - h, y));
         onRegionVerticalChange(idx, y, h);
         return;
       }
       if (mode === "w" || mode === "nw" || mode === "sw") {
-        onSetAllLeft(snapX(startLeft + dxN));
+        onSetAllLeft(snapX(startLeft + dxN, snap));
       }
       if (mode === "e" || mode === "ne" || mode === "se") {
-        onSetAllRight(snapX(startRight + dxN));
+        onSetAllRight(snapX(startRight + dxN, snap));
       }
       let y = start.y;
       let h = start.h;
-      if (mode.includes("n")) { y = snapY(start.y + dyN); h = startBottom - y; }
-      if (mode.includes("s")) { h = snapY(startBottom + dyN) - start.y; }
+      if (mode.includes("n")) { y = snapY(start.y + dyN, snap); h = startBottom - y; }
+      if (mode.includes("s")) { h = snapY(startBottom + dyN, snap) - start.y; }
       if (h < 0.005) h = 0.005;
       y = Math.max(0, Math.min(1 - h, y));
       h = Math.min(1 - y, h);
