@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles } from "lucide-react";
+import { AutoMarkScheme } from "@/components/AutoMarkScheme";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
@@ -57,6 +58,7 @@ export default function Index() {
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
   const [batchName, setBatchName] = useState("");
+  const [autoMSMode, setAutoMSMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -596,7 +598,18 @@ export default function Index() {
           <p className="label-mono" style={{ marginTop: 1 }}>pixel-perfect edge cropping</p>
         </div>
 
-        {images.length > 0 && !numberingMode && (
+        {!autoMSMode && (
+          <button
+            onClick={() => setAutoMSMode(true)}
+            className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+            style={{ borderColor: "hsl(var(--primary) / 0.4)", color: "hsl(var(--primary))" }}
+          >
+            <Sparkles size={13} />
+            Auto Mark Scheme
+          </button>
+        )}
+
+        {images.length > 0 && !numberingMode && !autoMSMode && (
           <div className="flex items-center gap-2">
             <button onClick={clearAll} className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2">
               <Trash2 size={13} />
@@ -624,7 +637,15 @@ export default function Index() {
 
       {/* Body */}
       <div className="flex-1 overflow-hidden flex">
-        {numberingMode ? (
+        {autoMSMode ? (
+          <AutoMarkScheme
+            onBack={() => setAutoMSMode(false)}
+            onSendToQueue={(files) => {
+              addImageFiles(files, images.length === 0);
+              setAutoMSMode(false);
+            }}
+          />
+        ) : numberingMode ? (
           <NumberingEditor
             images={numberedImages}
             config={numberingConfig}
