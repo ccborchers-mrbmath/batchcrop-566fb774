@@ -7,6 +7,8 @@ export interface DetectedRegion {
   isContinuationFromPrev: boolean;
   continuesOnNext: boolean;
   confidence: number;
+  /** True if the user manually adjusted this bbox — skip border snapping. */
+  manual?: boolean;
 }
 export interface PageDetection {
   pageIndex: number;
