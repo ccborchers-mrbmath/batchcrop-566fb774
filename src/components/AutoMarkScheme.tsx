@@ -158,6 +158,9 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
   };
 
   const reset = () => {
+    pagePreviews.forEach((u) => URL.revokeObjectURL(u));
+    setPagePreviews([]);
+    setExcludedPages(new Set());
     setPendingFile(null);
     setPages([]);
     setDetections([]);
