@@ -93,36 +93,52 @@ export async function detectAllPages(
   return out;
 }
 
+/** Extract the root question number from labels like "3", "3(a)", "3(b)(ii)". */
+function rootQuestionNumber(label: string): string | null {
+  const m = (label || "").trim().match(/^(\d+)/);
+  return m ? m[1] : null;
+}
+
 /**
- * Walk pages and group regions into logical questions.
- * Rules:
- * - A region starts a new group when it has a non-empty label AND isContinuationFromPrev=false.
- * - A region with isContinuationFromPrev=true (or empty label) appended to the most recent open group,
- *   provided the previous page's last region had continuesOnNext=true OR labels match.
+ * Group regions into logical questions.
+ * - Sub-parts on the same/consecutive pages with the same root number are merged
+ *   (e.g. 3(a), 3(b) → Q3).
+ * - Cross-page continuations (isContinuationFromPrev / continuesOnNext / empty label
+ *   following a continuesOnNext) are appended to the most recent open group.
  */
 export function groupIntoQuestions(detections: PageDetection[]): QuestionGroup[] {
   const groups: QuestionGroup[] = [];
   let prevContinues = false;
+  let lastRoot: string | null = null;
 
   for (const page of detections) {
     page.regions.forEach((r, idx) => {
       const isFirstOnPage = idx === 0;
-      const wantsContinue = r.isContinuationFromPrev || (isFirstOnPage && !r.label && prevContinues);
+      const root = rootQuestionNumber(r.label);
+      const wantsContinue =
+        r.isContinuationFromPrev ||
+        (isFirstOnPage && !r.label && prevContinues) ||
+        (root !== null && root === lastRoot);
 
       if (wantsContinue && groups.length > 0) {
         const last = groups[groups.length - 1];
         last.pieces.push({ pageIndex: page.pageIndex, bbox: r.bbox });
-        if (r.label && !last.label) last.label = r.label;
+        if (r.label && (!last.label || /^p\d+_/.test(last.label))) {
+          last.label = root ? `Q${root}` : r.label;
+        }
+        if (root) lastRoot = root;
       } else {
         groups.push({
           id: `${page.pageIndex}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-          label: r.label || `p${page.pageIndex + 1}_${idx + 1}`,
+          label: root ? `Q${root}` : (r.label || `p${page.pageIndex + 1}_${idx + 1}`),
           pieces: [{ pageIndex: page.pageIndex, bbox: r.bbox }],
         });
+        lastRoot = root;
       }
     });
     const lastRegion = page.regions[page.regions.length - 1];
     prevContinues = !!lastRegion?.continuesOnNext;
+    // lastRoot persists across pages so cross-page subparts (e.g. 3(c) on next page) merge.
   }
   return groups;
 }
@@ -138,26 +154,144 @@ async function loadImage(blob: Blob): Promise<HTMLImageElement> {
 }
 
 /**
+ * Snap bbox edges to the nearest dark horizontal/vertical line in the page image.
+ * Searches a window around each edge for the row/column with the highest fraction
+ * of dark pixels (a table border). Returns adjusted pixel coordinates.
+ */
+function snapToTableBorders(
+  imageData: ImageData,
+  px: { x: number; y: number; w: number; h: number },
+  searchPx = 40,
+  darkThreshold = 140,
+  minDarkFrac = 0.55,
+): { x: number; y: number; w: number; h: number } {
+  const { width: W, height: H, data } = imageData;
+  const isDark = (i: number) => {
+    // sRGB luminance approx
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    return lum < darkThreshold;
+  };
+
+  // Horizontal line score for a given y across [x0,x1)
+  const rowDarkFrac = (y: number, x0: number, x1: number) => {
+    if (y < 0 || y >= H) return 0;
+    let dark = 0;
+    let total = 0;
+    const step = Math.max(1, Math.floor((x1 - x0) / 600));
+    for (let x = x0; x < x1; x += step) {
+      const i = (y * W + x) * 4;
+      if (isDark(i)) dark++;
+      total++;
+    }
+    return total ? dark / total : 0;
+  };
+  const colDarkFrac = (x: number, y0: number, y1: number) => {
+    if (x < 0 || x >= W) return 0;
+    let dark = 0;
+    let total = 0;
+    const step = Math.max(1, Math.floor((y1 - y0) / 600));
+    for (let y = y0; y < y1; y += step) {
+      const i = (y * W + x) * 4;
+      if (isDark(i)) dark++;
+      total++;
+    }
+    return total ? dark / total : 0;
+  };
+
+  const findBestRow = (centerY: number, x0: number, x1: number) => {
+    let best = centerY;
+    let bestScore = rowDarkFrac(centerY, x0, x1);
+    for (let dy = 1; dy <= searchPx; dy++) {
+      for (const y of [centerY - dy, centerY + dy]) {
+        const s = rowDarkFrac(y, x0, x1);
+        if (s > bestScore) { bestScore = s; best = y; }
+      }
+    }
+    return bestScore >= minDarkFrac ? best : centerY;
+  };
+  const findBestCol = (centerX: number, y0: number, y1: number) => {
+    let best = centerX;
+    let bestScore = colDarkFrac(centerX, y0, y1);
+    for (let dx = 1; dx <= searchPx; dx++) {
+      for (const x of [centerX - dx, centerX + dx]) {
+        const s = colDarkFrac(x, y0, y1);
+        if (s > bestScore) { bestScore = s; best = x; }
+      }
+    }
+    return bestScore >= minDarkFrac ? best : centerX;
+  };
+
+  const x0 = Math.max(0, px.x);
+  const y0 = Math.max(0, px.y);
+  const x1 = Math.min(W, px.x + px.w);
+  const y1 = Math.min(H, px.y + px.h);
+
+  const newTop = findBestRow(y0, x0, x1);
+  const newBot = findBestRow(y1, x0, x1);
+  const newLeft = findBestCol(x0, newTop, newBot);
+  const newRight = findBestCol(x1, newTop, newBot);
+
+  return {
+    x: Math.max(0, Math.min(W - 1, newLeft)),
+    y: Math.max(0, Math.min(H - 1, newTop)),
+    w: Math.max(1, newRight - newLeft),
+    h: Math.max(1, newBot - newTop),
+  };
+}
+
+/**
  * Crop pieces from their pages and stitch vertically into a single PNG blob.
- * If a piece is wider/narrower than others it's scaled to match the widest.
+ * - Each bbox edge is snapped to the nearest table border in the page.
+ * - Pieces of differing widths are padded (NOT scaled) with white so internal
+ *   table columns stay aligned.
  */
 export async function buildQuestionImage(
   group: QuestionGroup,
   detections: PageDetection[],
-  gapPx = 8,
+  gapPx = 0,
 ): Promise<Blob> {
-  // Crop each piece into its own canvas first
+  // Cache page imageData per pageIndex (snapping needs pixel access).
+  const pageDataCache = new Map<number, { img: HTMLImageElement; data: ImageData; W: number; H: number }>();
+  const getPageData = async (pageIndex: number) => {
+    const cached = pageDataCache.get(pageIndex);
+    if (cached) return cached;
+    const page = detections[pageIndex];
+    const img = await loadImage(page.pageBlob);
+    const W = img.naturalWidth;
+    const H = img.naturalHeight;
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const ctx = c.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, W, H);
+    const entry = { img, data, W, H };
+    pageDataCache.set(pageIndex, entry);
+    return entry;
+  };
+
+  // Crop each piece into its own canvas after border snapping.
   const pieceCanvases: HTMLCanvasElement[] = [];
   for (const piece of group.pieces) {
     const page = detections[piece.pageIndex];
     if (!page) continue;
-    const img = await loadImage(page.pageBlob);
-    const W = page.pageWidth;
-    const H = page.pageHeight;
-    const sx = Math.max(0, Math.round(piece.bbox.x * W));
-    const sy = Math.max(0, Math.round(piece.bbox.y * H));
-    const sw = Math.max(1, Math.min(W - sx, Math.round(piece.bbox.w * W)));
-    const sh = Math.max(1, Math.min(H - sy, Math.round(piece.bbox.h * H)));
+    const { img, data, W, H } = await getPageData(piece.pageIndex);
+
+    // Initial pixel rect from normalized bbox
+    const rawPx = {
+      x: Math.round(piece.bbox.x * W),
+      y: Math.round(piece.bbox.y * H),
+      w: Math.round(piece.bbox.w * W),
+      h: Math.round(piece.bbox.h * H),
+    };
+    // Search window: 3% of page dimension is enough to find an outer table rule.
+    const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
+    const snap = snapToTableBorders(data, rawPx, searchPx);
+
+    const sx = Math.max(0, Math.min(W - 1, snap.x));
+    const sy = Math.max(0, Math.min(H - 1, snap.y));
+    const sw = Math.max(1, Math.min(W - sx, snap.w));
+    const sh = Math.max(1, Math.min(H - sy, snap.h));
+
     const c = document.createElement("canvas");
     c.width = sw;
     c.height = sh;
@@ -167,9 +301,9 @@ export async function buildQuestionImage(
   }
   if (!pieceCanvases.length) throw new Error("No pieces to stitch");
 
+  // Pad to widest (preserve original scale & column alignment)
   const targetW = Math.max(...pieceCanvases.map((c) => c.width));
-  const scaledHeights = pieceCanvases.map((c) => Math.round((c.height * targetW) / c.width));
-  const totalH = scaledHeights.reduce((a, b) => a + b, 0) + gapPx * (pieceCanvases.length - 1);
+  const totalH = pieceCanvases.reduce((a, c) => a + c.height, 0) + gapPx * (pieceCanvases.length - 1);
 
   const out = document.createElement("canvas");
   out.width = targetW;
@@ -180,9 +314,12 @@ export async function buildQuestionImage(
 
   let y = 0;
   pieceCanvases.forEach((c, i) => {
-    const h = scaledHeights[i];
-    octx.drawImage(c, 0, 0, c.width, c.height, 0, y, targetW, h);
-    y += h + gapPx;
+    // Center horizontally so narrower pieces don't shift the perceived column grid;
+    // most mark-scheme tables share the same left margin so left-align also works,
+    // but centering is safer when widths only differ by a couple of pixels.
+    const dx = Math.round((targetW - c.width) / 2);
+    octx.drawImage(c, dx, y);
+    y += c.height + gapPx;
   });
 
   return await new Promise<Blob>((res, rej) =>
@@ -192,5 +329,5 @@ export async function buildQuestionImage(
 
 export function questionFileName(label: string, idx: number): string {
   const safe = (label || `Q${idx + 1}`).replace(/[<>:"/\\|?*]/g, "_").trim() || `Q${idx + 1}`;
-  return `MS_Q${safe}.png`;
+  return `MS_${safe}.png`;
 }

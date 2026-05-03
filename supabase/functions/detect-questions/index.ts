@@ -9,17 +9,26 @@ const corsHeaders = {
 
 const SYSTEM = `You analyze a single page image from a Cambridge exam mark scheme PDF.
 
-Identify each "question region" on the page. A question region is the rectangular area that contains the answer/marks for a single question (or sub-question if labels like 1(a), 2(b)(ii) appear separately on the page).
+The mark scheme is laid out as a table with columns: Question | Answer | Marks | Guidance.
+Identify each "question region" — the rectangular slab of that table belonging to a single ROOT question number (1, 2, 3, …).
 
-Rules:
-- A region STARTS at the top of its question number (or at the page top if it's a continuation of a question from the previous page).
-- A region ENDS just before the next question's number, OR at the bottom of the page content (ignore page footer/header bars).
-- Skip page headers, footers, page numbers, and column dividers — only return content regions.
-- Bounding boxes must be NORMALIZED to 0..1 of the full page image (x, y from top-left, w, h are widths/heights).
-- Pad each box slightly (about 1% on each side) so no content gets clipped.
-- If the page begins mid-answer with no question number at the very top, set isContinuationFromPrev=true on that first region and use the best-guess label (or "" if unknown).
-- If the last region on the page extends all the way to the bottom of the page content (no clear "end" before the footer), set continuesOnNext=true on that region.
-- Use confidence 0..1 to indicate how certain you are.
+CRITICAL — group sub-parts together:
+- All sub-parts of the same root number on the same page (e.g. 3(a) AND 3(b), or 4(a)(i) and 4(a)(ii)) MUST be returned as ONE region with label = the root number ("3", "4", …). Do NOT split sub-parts into separate boxes.
+- A region therefore covers from the top border of the table row that begins root question N down to the bottom border of the last row before root question N+1 (or the bottom of the table if it's the last on the page).
+
+CRITICAL — bounding box edges must lie ON the table's outer borders:
+- TOP edge: exactly on the horizontal table rule above the question's first row (the dark line). Do NOT cut into the row above.
+- BOTTOM edge: exactly on the horizontal table rule below the question's last row.
+- LEFT edge: exactly on the leftmost vertical table rule (the outer left border of the "Question" column).
+- RIGHT edge: exactly on the rightmost vertical table rule (the outer right border of the "Guidance" column).
+- Do NOT pad — being slightly INSIDE the borders is better than slightly outside. The downstream code will snap to the nearest dark line.
+
+Other rules:
+- Skip page headers, footers, page numbers, column-header rows that just say "Question / Answer / Marks / Guidance", and any "BLANK PAGE" markers.
+- Bounding boxes are NORMALIZED to 0..1 of the full page image (x, y from top-left).
+- If the page begins mid-answer with no new root question number at the top, set isContinuationFromPrev=true and use the best-guess label of the question being continued (or "" if unknown).
+- If the last region extends to the bottom of the table with no clear closing border before the footer, set continuesOnNext=true.
+- Use confidence 0..1.
 - Return regions in TOP-TO-BOTTOM order.`;
 
 interface Body {
