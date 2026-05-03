@@ -13,6 +13,9 @@ import {
   QuestionGroup,
   DetectedRegion,
 } from "@/lib/autoMarkScheme";
+import { useZoom } from "@/hooks/useZoom";
+import { ZoomControls } from "@/components/ZoomControls";
+import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
 
 type Step = "idle" | "rendering" | "selecting" | "detecting" | "review" | "exporting";
 
@@ -542,6 +545,29 @@ function PageWithBoxes({
   onShiftAllHorizontal: (dxN: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const { zoom, setScale, reset, zoomIn, zoomOut, onPanMouseDown, MIN_SCALE, MAX_SCALE } = useZoom(containerRef);
+  const [showGrid, setShowGrid] = useState(true);
+  const [imgDims, setImgDims] = useState({ dW: 0, dH: 0, nW: 0, nH: 0 });
+
+  // Track natural & rendered size for pixel grid
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const measure = () => {
+      setImgDims({
+        dW: img.clientWidth,
+        dH: img.clientHeight,
+        nW: img.naturalWidth,
+        nH: img.naturalHeight,
+      });
+    };
+    if (img.complete) measure();
+    img.addEventListener("load", measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(img);
+    return () => { img.removeEventListener("load", measure); ro.disconnect(); };
+  }, [imageUrl]);
 
   const beginDrag = (
     e: React.MouseEvent,
@@ -554,20 +580,24 @@ function PageWithBoxes({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
+    // Drag deltas must be divided by zoom scale to keep pixel-accurate motion.
+    const scale = zoom.scale || 1;
+    const baseW = rect.width / scale;
+    const baseH = rect.height / scale;
     const startX = e.clientX;
     const startY = e.clientY;
     const start = { ...region.bbox };
     const startLeft = start.x;
     const startRight = start.x + start.w;
 
+    let lastDx = 0;
     const onMove = (ev: MouseEvent) => {
-      const dxN = (ev.clientX - startX) / rect.width;
-      const dyN = (ev.clientY - startY) / rect.height;
+      const dxN = (ev.clientX - startX) / baseW;
+      const dyN = (ev.clientY - startY) / baseH;
 
-      // Horizontal edges are LINKED across all regions/pages.
       if (mode === "move") {
-        shiftAllHorizontalSafe(dxN);
-        // Also move vertically for this region only
+        onShiftAllHorizontal(dxN - lastDx);
+        lastDx = dxN;
         let y = start.y + dyN;
         let h = start.h;
         y = Math.max(0, Math.min(1 - h, y));
@@ -580,7 +610,6 @@ function PageWithBoxes({
       if (mode === "e" || mode === "ne" || mode === "se") {
         onSetAllRight(startRight + dxN);
       }
-      // Vertical edges remain independent per region.
       let y = start.y;
       let h = start.h;
       if (mode.includes("n")) { y = start.y + dyN; h = start.h - dyN; }
@@ -592,96 +621,131 @@ function PageWithBoxes({
         onRegionVerticalChange(idx, y, h);
       }
     };
-    const shiftAllHorizontalSafe = (dx: number) => onShiftAllHorizontal(dx - lastDx);
-    let lastDx = 0;
-    const wrappedMove = (ev: MouseEvent) => {
-      if (mode === "move") {
-        const dxN = (ev.clientX - startX) / rect.width;
-        const dyN = (ev.clientY - startY) / rect.height;
-        onShiftAllHorizontal(dxN - lastDx);
-        lastDx = dxN;
-        let y = start.y + dyN;
-        let h = start.h;
-        y = Math.max(0, Math.min(1 - h, y));
-        onRegionVerticalChange(idx, y, h);
-        return;
-      }
-      onMove(ev);
-    };
     const onUp = () => {
-      window.removeEventListener("mousemove", wrappedMove);
+      window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-    window.addEventListener("mousemove", wrappedMove);
+    window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
 
+  // Handle size in screen px stays constant regardless of zoom
+  const handlePx = 10 / (zoom.scale || 1);
   const handleBase: React.CSSProperties = {
     position: "absolute",
     background: "hsl(var(--primary))",
-    border: "1px solid hsl(var(--background))",
-    width: 10,
-    height: 10,
+    border: `${1 / (zoom.scale || 1)}px solid hsl(var(--background))`,
+    width: handlePx,
+    height: handlePx,
     zIndex: 2,
   };
+  const borderPx = 2 / (zoom.scale || 1);
 
   return (
-    <div className="flex flex-col gap-2 max-w-full">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-2 max-w-full w-full">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="label-mono">
-          Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""} · L/R edges linked across all pages
+          Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""} · L/R linked · Ctrl+scroll to zoom
         </p>
-        <button
-          onClick={onReDetect}
-          className="btn-secondary px-2 py-1 text-xs flex items-center gap-1.5"
-        >
-          <RefreshCw size={11} /> Re-detect
-        </button>
+        <div className="flex items-center gap-3">
+          <GridToggle show={showGrid} onToggle={() => setShowGrid((s) => !s)} />
+          <ZoomControls
+            scale={zoom.scale}
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onReset={reset}
+            onSliderChange={(v) => setScale(v)}
+          />
+          <button
+            onClick={onReDetect}
+            className="btn-secondary px-2 py-1 text-xs flex items-center gap-1.5"
+          >
+            <RefreshCw size={11} /> Re-detect
+          </button>
+        </div>
       </div>
-      <div ref={containerRef} className="relative inline-block select-none" style={{ maxWidth: "100%" }}>
-        {imageUrl && (
-          <img src={imageUrl} alt="page" className="block max-w-full h-auto" draggable={false} />
-        )}
-        {regions.map((r, i) => {
-          const lowConf = r.confidence < 0.6;
-          const color = r.manual ? "hsl(var(--primary))" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
-          return (
-            <div
-              key={i}
-              className="absolute"
-              style={{
-                left: `${r.bbox.x * 100}%`,
-                top: `${r.bbox.y * 100}%`,
-                width: `${r.bbox.w * 100}%`,
-                height: `${r.bbox.h * 100}%`,
-                border: `2px solid ${color}`,
-                background: `${color.replace(")", " / 0.08)")}`,
-                cursor: "move",
-              }}
-              onMouseDown={(e) => beginDrag(e, i, r, "move")}
-            >
-              <span
-                className="absolute top-0 left-0 px-1.5 py-0.5 text-xs font-semibold pointer-events-none"
-                style={{ background: color, color: "hsl(var(--background))" }}
+      {/* Outer scroll/clip area for the zoomable canvas */}
+      <div className="relative w-full overflow-hidden" style={{ minHeight: 200 }}>
+        <div
+          ref={containerRef}
+          className="relative inline-block select-none"
+          style={{
+            maxWidth: "100%",
+            transform: `translate(${zoom.offsetX}px, ${zoom.offsetY}px) scale(${zoom.scale})`,
+            transformOrigin: "center top",
+            cursor: zoom.scale > 1 ? "grab" : "default",
+            imageRendering: zoom.scale >= 4 ? "pixelated" : "auto",
+          }}
+          onMouseDown={onPanMouseDown}
+        >
+          {imageUrl && (
+            <img
+              ref={imgRef}
+              src={imageUrl}
+              alt="page"
+              className="block max-w-full h-auto"
+              draggable={false}
+              style={{ imageRendering: zoom.scale >= 4 ? "pixelated" : "auto" }}
+            />
+          )}
+          {showGrid && imgDims.nW > 0 && (
+            <PixelGridOverlay
+              displayWidth={imgDims.dW}
+              displayHeight={imgDims.dH}
+              naturalWidth={imgDims.nW}
+              naturalHeight={imgDims.nH}
+              zoomScale={zoom.scale}
+            />
+          )}
+          {regions.map((r, i) => {
+            const lowConf = r.confidence < 0.6;
+            const color = r.manual ? "hsl(var(--primary))" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
+            return (
+              <div
+                key={i}
+                className="absolute"
+                style={{
+                  left: `${r.bbox.x * 100}%`,
+                  top: `${r.bbox.y * 100}%`,
+                  width: `${r.bbox.w * 100}%`,
+                  height: `${r.bbox.h * 100}%`,
+                  border: `${borderPx}px solid ${color}`,
+                  background: `${color.replace(")", " / 0.08)")}`,
+                  cursor: "move",
+                  zIndex: 6,
+                }}
+                onMouseDown={(e) => beginDrag(e, i, r, "move")}
               >
-                {r.label || "?"}
-                {r.isContinuationFromPrev && " ↑"}
-                {r.continuesOnNext && " ↓"}
-                {r.manual && " ✎"}
-              </span>
-              {/* Edge handles */}
-              <div onMouseDown={(e) => beginDrag(e, i, r, "n")} style={{ ...handleBase, top: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "s")} style={{ ...handleBase, bottom: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "w")} style={{ ...handleBase, left: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} title="Left edge — linked across all pages" />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "e")} style={{ ...handleBase, right: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} title="Right edge — linked across all pages" />
-              {/* Corner handles */}
-              <div onMouseDown={(e) => beginDrag(e, i, r, "nw")} style={{ ...handleBase, top: -5, left: -5, cursor: "nwse-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "ne")} style={{ ...handleBase, top: -5, right: -5, cursor: "nesw-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "sw")} style={{ ...handleBase, bottom: -5, left: -5, cursor: "nesw-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "se")} style={{ ...handleBase, bottom: -5, right: -5, cursor: "nwse-resize" }} />
-            </div>
-          );
-        })}
+                <span
+                  className="absolute top-0 left-0 px-1.5 py-0.5 font-semibold pointer-events-none"
+                  style={{
+                    background: color,
+                    color: "hsl(var(--background))",
+                    fontSize: `${12 / (zoom.scale || 1)}px`,
+                    transformOrigin: "top left",
+                  }}
+                >
+                  {r.label || "?"}
+                  {r.isContinuationFromPrev && " ↑"}
+                  {r.continuesOnNext && " ↓"}
+                  {r.manual && " ✎"}
+                </span>
+                {/* Edge handles */}
+                <div onMouseDown={(e) => beginDrag(e, i, r, "n")} style={{ ...handleBase, top: -handlePx / 2, left: "50%", marginLeft: -handlePx / 2, cursor: "ns-resize" }} />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "s")} style={{ ...handleBase, bottom: -handlePx / 2, left: "50%", marginLeft: -handlePx / 2, cursor: "ns-resize" }} />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "w")} style={{ ...handleBase, left: -handlePx / 2, top: "50%", marginTop: -handlePx / 2, cursor: "ew-resize" }} title="Left edge — linked across all pages" />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "e")} style={{ ...handleBase, right: -handlePx / 2, top: "50%", marginTop: -handlePx / 2, cursor: "ew-resize" }} title="Right edge — linked across all pages" />
+                {/* Corner handles */}
+                <div onMouseDown={(e) => beginDrag(e, i, r, "nw")} style={{ ...handleBase, top: -handlePx / 2, left: -handlePx / 2, cursor: "nwse-resize" }} />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "ne")} style={{ ...handleBase, top: -handlePx / 2, right: -handlePx / 2, cursor: "nesw-resize" }} />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "sw")} style={{ ...handleBase, bottom: -handlePx / 2, left: -handlePx / 2, cursor: "nesw-resize" }} />
+                <div onMouseDown={(e) => beginDrag(e, i, r, "se")} style={{ ...handleBase, bottom: -handlePx / 2, right: -handlePx / 2, cursor: "nwse-resize" }} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
