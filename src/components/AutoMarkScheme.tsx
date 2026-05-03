@@ -462,17 +462,73 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
 }
 
 function PageWithBoxes({
-  imageUrl, regions, onReDetect, pageNum,
+  imageUrl, regions, onReDetect, pageNum, onRegionChange,
 }: {
   imageUrl: string;
   regions: DetectedRegion[];
   onReDetect: () => void;
   pageNum: number;
+  onRegionChange: (idx: number, bbox: { x: number; y: number; w: number; h: number }) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const beginDrag = (
+    e: React.MouseEvent,
+    idx: number,
+    region: DetectedRegion,
+    mode: "move" | "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw",
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const start = { ...region.bbox };
+
+    const onMove = (ev: MouseEvent) => {
+      const dxN = (ev.clientX - startX) / rect.width;
+      const dyN = (ev.clientY - startY) / rect.height;
+      let { x, y, w, h } = start;
+      if (mode === "move") { x += dxN; y += dyN; }
+      if (mode.includes("n")) { y += dyN; h -= dyN; }
+      if (mode.includes("s")) { h += dyN; }
+      if (mode.includes("w")) { x += dxN; w -= dxN; }
+      if (mode.includes("e")) { w += dxN; }
+      // Clamp
+      const minSize = 0.005;
+      if (w < minSize) { w = minSize; }
+      if (h < minSize) { h = minSize; }
+      x = Math.max(0, Math.min(1 - w, x));
+      y = Math.max(0, Math.min(1 - h, y));
+      w = Math.min(1 - x, w);
+      h = Math.min(1 - y, h);
+      onRegionChange(idx, { x, y, w, h });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const handleBase: React.CSSProperties = {
+    position: "absolute",
+    background: "hsl(var(--primary))",
+    border: "1px solid hsl(var(--background))",
+    width: 10,
+    height: 10,
+    zIndex: 2,
+  };
+
   return (
     <div className="flex flex-col gap-2 max-w-full">
       <div className="flex items-center justify-between">
-        <p className="label-mono">Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""}</p>
+        <p className="label-mono">
+          Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""} · drag edges/corners to adjust
+        </p>
         <button
           onClick={onReDetect}
           className="btn-secondary px-2 py-1 text-xs flex items-center gap-1.5"
@@ -480,17 +536,17 @@ function PageWithBoxes({
           <RefreshCw size={11} /> Re-detect
         </button>
       </div>
-      <div className="relative inline-block" style={{ maxWidth: "100%" }}>
+      <div ref={containerRef} className="relative inline-block select-none" style={{ maxWidth: "100%" }}>
         {imageUrl && (
-          <img src={imageUrl} alt="page" className="block max-w-full h-auto" />
+          <img src={imageUrl} alt="page" className="block max-w-full h-auto" draggable={false} />
         )}
         {regions.map((r, i) => {
           const lowConf = r.confidence < 0.6;
-          const color = lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)";
+          const color = r.manual ? "hsl(var(--primary))" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
           return (
             <div
               key={i}
-              className="absolute pointer-events-none"
+              className="absolute"
               style={{
                 left: `${r.bbox.x * 100}%`,
                 top: `${r.bbox.y * 100}%`,
@@ -498,16 +554,29 @@ function PageWithBoxes({
                 height: `${r.bbox.h * 100}%`,
                 border: `2px solid ${color}`,
                 background: `${color.replace(")", " / 0.08)")}`,
+                cursor: "move",
               }}
+              onMouseDown={(e) => beginDrag(e, i, r, "move")}
             >
               <span
-                className="absolute top-0 left-0 px-1.5 py-0.5 text-xs font-semibold"
+                className="absolute top-0 left-0 px-1.5 py-0.5 text-xs font-semibold pointer-events-none"
                 style={{ background: color, color: "hsl(var(--background))" }}
               >
                 {r.label || "?"}
                 {r.isContinuationFromPrev && " ↑"}
                 {r.continuesOnNext && " ↓"}
+                {r.manual && " ✎"}
               </span>
+              {/* Edge handles */}
+              <div onMouseDown={(e) => beginDrag(e, i, r, "n")} style={{ ...handleBase, top: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "s")} style={{ ...handleBase, bottom: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "w")} style={{ ...handleBase, left: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "e")} style={{ ...handleBase, right: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} />
+              {/* Corner handles */}
+              <div onMouseDown={(e) => beginDrag(e, i, r, "nw")} style={{ ...handleBase, top: -5, left: -5, cursor: "nwse-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "ne")} style={{ ...handleBase, top: -5, right: -5, cursor: "nesw-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "sw")} style={{ ...handleBase, bottom: -5, left: -5, cursor: "nesw-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "se")} style={{ ...handleBase, bottom: -5, right: -5, cursor: "nwse-resize" }} />
             </div>
           );
         })}
@@ -515,3 +584,4 @@ function PageWithBoxes({
     </div>
   );
 }
+
