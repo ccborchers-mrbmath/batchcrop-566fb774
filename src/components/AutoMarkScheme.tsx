@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Sparkles, ArrowLeft, Loader2, Download, Send, Trash2, RefreshCw } from "lucide-react";
+import { Upload, Sparkles, ArrowLeft, Loader2, Download, Send, Trash2, RefreshCw, X, Check } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { pdfToImages } from "@/lib/pdfToImages";
@@ -14,7 +14,7 @@ import {
   DetectedRegion,
 } from "@/lib/autoMarkScheme";
 
-type Step = "idle" | "rendering" | "detecting" | "review" | "exporting";
+type Step = "idle" | "rendering" | "selecting" | "detecting" | "review" | "exporting";
 
 interface Props {
   onBack: () => void;
@@ -33,6 +33,8 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
   const [pagePreviewUrl, setPagePreviewUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pagePreviews, setPagePreviews] = useState<string[]>([]);
+  const [excludedPages, setExcludedPages] = useState<Set<number>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Build a preview URL for the selected page
@@ -60,9 +62,31 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
         setRenderProgress({ done, total });
       });
       setPages(rendered);
-      setStep("detecting");
-      setDetectProgress({ done: 0, total: rendered.length });
-      const det = await detectAllPages(rendered.map((p) => p.blob), (done, total) => {
+      // Build preview URLs for page selection
+      const urls = rendered.map((p) => URL.createObjectURL(p.blob));
+      setPagePreviews(urls);
+      setExcludedPages(new Set());
+      setStep("selecting");
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Processing failed");
+      setStep("idle");
+    }
+  };
+
+  const runDetection = async () => {
+    const kept = pages
+      .map((p, i) => ({ p, i }))
+      .filter(({ i }) => !excludedPages.has(i));
+    if (!kept.length) {
+      setError("Select at least one page to keep");
+      return;
+    }
+    setStep("detecting");
+    setError("");
+    setDetectProgress({ done: 0, total: kept.length });
+    try {
+      const det = await detectAllPages(kept.map(({ p }) => p.blob), (done, total) => {
         setDetectProgress({ done, total });
       });
       setDetections(det);
@@ -70,9 +94,18 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
       setStep("review");
     } catch (e: any) {
       console.error(e);
-      setError(e?.message || "Processing failed");
-      setStep("idle");
+      setError(e?.message || "Detection failed");
+      setStep("selecting");
     }
+  };
+
+  const togglePageExcluded = (idx: number) => {
+    setExcludedPages((s) => {
+      const next = new Set(s);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
   };
 
   const reDetectPage = async (pageIdx: number) => {
@@ -125,6 +158,9 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
   };
 
   const reset = () => {
+    pagePreviews.forEach((u) => URL.revokeObjectURL(u));
+    setPagePreviews([]);
+    setExcludedPages(new Set());
     setPendingFile(null);
     setPages([]);
     setDetections([]);
@@ -174,7 +210,7 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
             </button>
           </>
         )}
-        {(step === "review" || step === "exporting") && (
+        {(step === "selecting" || step === "review" || step === "exporting") && (
           <button onClick={reset} className="btn-secondary px-3 py-1.5 text-sm">Start over</button>
         )}
       </div>
@@ -247,6 +283,81 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
               {step === "detecting" && `Detecting questions with AI… ${detectProgress.done} / ${detectProgress.total}`}
               {step === "exporting" && "Cropping & stitching…"}
             </p>
+          </div>
+        </div>
+      )}
+
+      {step === "selecting" && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div
+            className="px-6 py-3 border-b flex items-center gap-3 shrink-0"
+            style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--card))" }}
+          >
+            <div className="flex flex-col">
+              <p className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                Select pages to process
+              </p>
+              <p className="label-mono">
+                Click a page to exclude it. {pages.length - excludedPages.size} of {pages.length} kept · ~{pages.length - excludedPages.size} AI calls
+              </p>
+            </div>
+            <div className="flex-1" />
+            <button
+              onClick={() => setExcludedPages(new Set())}
+              className="btn-secondary px-3 py-1.5 text-xs"
+            >
+              Keep all
+            </button>
+            <button
+              onClick={() => setExcludedPages(new Set(pages.map((_, i) => i)))}
+              className="btn-secondary px-3 py-1.5 text-xs"
+            >
+              Exclude all
+            </button>
+            <button
+              onClick={runDetection}
+              disabled={pages.length - excludedPages.size === 0}
+              className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+              <Sparkles size={13} /> Detect ({pages.length - excludedPages.size})
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto p-4">
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+              {pages.map((p, i) => {
+                const excluded = excludedPages.has(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => togglePageExcluded(i)}
+                    className="relative rounded overflow-hidden flex flex-col group"
+                    style={{
+                      border: "2px solid " + (excluded ? "hsl(var(--destructive))" : "hsl(var(--primary))"),
+                      background: "hsl(var(--card))",
+                      opacity: excluded ? 0.45 : 1,
+                    }}
+                  >
+                    <img src={pagePreviews[i]} alt={`Page ${i + 1}`} className="w-full h-auto block" />
+                    <div
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                      style={{
+                        background: excluded ? "hsl(var(--destructive))" : "hsl(var(--primary))",
+                        color: "hsl(var(--background))",
+                      }}
+                    >
+                      {excluded ? <X size={12} /> : <Check size={12} />}
+                    </div>
+                    <div
+                      className="px-2 py-1 text-xs flex items-center justify-between"
+                      style={{ background: "hsl(var(--muted))", color: "hsl(var(--foreground))" }}
+                    >
+                      <span>Page {i + 1}</span>
+                      <span className="label-mono">{excluded ? "skip" : "keep"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
