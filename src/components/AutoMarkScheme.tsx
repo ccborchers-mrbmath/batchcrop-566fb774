@@ -121,15 +121,64 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     }
   };
 
-  const updateRegion = (pageIdx: number, regionIdx: number, bbox: { x: number; y: number; w: number; h: number }) => {
+  // Update only the vertical (y/h) of a single region. Horizontal edges are
+  // linked globally and updated via setAllLeft/setAllRight/shiftAllHorizontal.
+  const updateRegionVertical = (pageIdx: number, regionIdx: number, y: number, h: number) => {
     setDetections((prev) => {
       const next = prev.map((p, i) => {
         if (i !== pageIdx) return p;
         const regions = p.regions.map((r, j) =>
-          j === regionIdx ? { ...r, bbox, manual: true } : r,
+          j === regionIdx ? { ...r, bbox: { ...r.bbox, y, h }, manual: true } : r,
         );
         return { ...p, regions };
       });
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Set the left edge of every region on every page to the same normalized x.
+  const setAllLeft = (xN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const right = r.bbox.x + r.bbox.w;
+          const newX = Math.max(0, Math.min(right - 0.005, xN));
+          return { ...r, bbox: { ...r.bbox, x: newX, w: right - newX }, manual: true };
+        }),
+      }));
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Set the right edge of every region on every page to the same normalized x.
+  const setAllRight = (xN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const left = r.bbox.x;
+          const newRight = Math.max(left + 0.005, Math.min(1, xN));
+          return { ...r, bbox: { ...r.bbox, w: newRight - left }, manual: true };
+        }),
+      }));
+      setGroups(groupIntoQuestions(next));
+      return next;
+    });
+  };
+
+  // Shift every region horizontally by dxN (preserves widths). Used by "move".
+  const shiftAllHorizontal = (dxN: number) => {
+    setDetections((prev) => {
+      const next = prev.map((p) => ({
+        ...p,
+        regions: p.regions.map((r) => {
+          const newX = Math.max(0, Math.min(1 - r.bbox.w, r.bbox.x + dxN));
+          return { ...r, bbox: { ...r.bbox, x: newX }, manual: true };
+        }),
+      }));
       setGroups(groupIntoQuestions(next));
       return next;
     });
@@ -408,7 +457,10 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
               regions={currentPageDet.regions}
               onReDetect={() => reDetectPage(selectedPageIdx)}
               pageNum={selectedPageIdx + 1}
-              onRegionChange={(idx, bbox) => updateRegion(selectedPageIdx, idx, bbox)}
+              onRegionVerticalChange={(idx, y, h) => updateRegionVertical(selectedPageIdx, idx, y, h)}
+              onSetAllLeft={setAllLeft}
+              onSetAllRight={setAllRight}
+              onShiftAllHorizontal={shiftAllHorizontal}
             />
           </div>
 
@@ -477,13 +529,17 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
 }
 
 function PageWithBoxes({
-  imageUrl, regions, onReDetect, pageNum, onRegionChange,
+  imageUrl, regions, onReDetect, pageNum,
+  onRegionVerticalChange, onSetAllLeft, onSetAllRight, onShiftAllHorizontal,
 }: {
   imageUrl: string;
   regions: DetectedRegion[];
   onReDetect: () => void;
   pageNum: number;
-  onRegionChange: (idx: number, bbox: { x: number; y: number; w: number; h: number }) => void;
+  onRegionVerticalChange: (idx: number, y: number, h: number) => void;
+  onSetAllLeft: (xN: number) => void;
+  onSetAllRight: (xN: number) => void;
+  onShiftAllHorizontal: (dxN: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -501,31 +557,62 @@ function PageWithBoxes({
     const startX = e.clientX;
     const startY = e.clientY;
     const start = { ...region.bbox };
+    const startLeft = start.x;
+    const startRight = start.x + start.w;
 
     const onMove = (ev: MouseEvent) => {
       const dxN = (ev.clientX - startX) / rect.width;
       const dyN = (ev.clientY - startY) / rect.height;
-      let { x, y, w, h } = start;
-      if (mode === "move") { x += dxN; y += dyN; }
-      if (mode.includes("n")) { y += dyN; h -= dyN; }
-      if (mode.includes("s")) { h += dyN; }
-      if (mode.includes("w")) { x += dxN; w -= dxN; }
-      if (mode.includes("e")) { w += dxN; }
-      // Clamp
-      const minSize = 0.005;
-      if (w < minSize) { w = minSize; }
-      if (h < minSize) { h = minSize; }
-      x = Math.max(0, Math.min(1 - w, x));
+
+      // Horizontal edges are LINKED across all regions/pages.
+      if (mode === "move") {
+        shiftAllHorizontalSafe(dxN);
+        // Also move vertically for this region only
+        let y = start.y + dyN;
+        let h = start.h;
+        y = Math.max(0, Math.min(1 - h, y));
+        onRegionVerticalChange(idx, y, h);
+        return;
+      }
+      if (mode === "w" || mode === "nw" || mode === "sw") {
+        onSetAllLeft(startLeft + dxN);
+      }
+      if (mode === "e" || mode === "ne" || mode === "se") {
+        onSetAllRight(startRight + dxN);
+      }
+      // Vertical edges remain independent per region.
+      let y = start.y;
+      let h = start.h;
+      if (mode.includes("n")) { y = start.y + dyN; h = start.h - dyN; }
+      if (mode.includes("s")) { h = start.h + dyN; }
+      if (h < 0.005) h = 0.005;
       y = Math.max(0, Math.min(1 - h, y));
-      w = Math.min(1 - x, w);
       h = Math.min(1 - y, h);
-      onRegionChange(idx, { x, y, w, h });
+      if (mode !== "e" && mode !== "w") {
+        onRegionVerticalChange(idx, y, h);
+      }
+    };
+    const shiftAllHorizontalSafe = (dx: number) => onShiftAllHorizontal(dx - lastDx);
+    let lastDx = 0;
+    const wrappedMove = (ev: MouseEvent) => {
+      if (mode === "move") {
+        const dxN = (ev.clientX - startX) / rect.width;
+        const dyN = (ev.clientY - startY) / rect.height;
+        onShiftAllHorizontal(dxN - lastDx);
+        lastDx = dxN;
+        let y = start.y + dyN;
+        let h = start.h;
+        y = Math.max(0, Math.min(1 - h, y));
+        onRegionVerticalChange(idx, y, h);
+        return;
+      }
+      onMove(ev);
     };
     const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mousemove", wrappedMove);
       window.removeEventListener("mouseup", onUp);
     };
-    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mousemove", wrappedMove);
     window.addEventListener("mouseup", onUp);
   };
 
@@ -542,7 +629,7 @@ function PageWithBoxes({
     <div className="flex flex-col gap-2 max-w-full">
       <div className="flex items-center justify-between">
         <p className="label-mono">
-          Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""} · drag edges/corners to adjust
+          Page {pageNum} · {regions.length} region{regions.length !== 1 ? "s" : ""} · L/R edges linked across all pages
         </p>
         <button
           onClick={onReDetect}
@@ -585,8 +672,8 @@ function PageWithBoxes({
               {/* Edge handles */}
               <div onMouseDown={(e) => beginDrag(e, i, r, "n")} style={{ ...handleBase, top: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
               <div onMouseDown={(e) => beginDrag(e, i, r, "s")} style={{ ...handleBase, bottom: -5, left: "50%", marginLeft: -5, cursor: "ns-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "w")} style={{ ...handleBase, left: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} />
-              <div onMouseDown={(e) => beginDrag(e, i, r, "e")} style={{ ...handleBase, right: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "w")} style={{ ...handleBase, left: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} title="Left edge — linked across all pages" />
+              <div onMouseDown={(e) => beginDrag(e, i, r, "e")} style={{ ...handleBase, right: -5, top: "50%", marginTop: -5, cursor: "ew-resize" }} title="Right edge — linked across all pages" />
               {/* Corner handles */}
               <div onMouseDown={(e) => beginDrag(e, i, r, "nw")} style={{ ...handleBase, top: -5, left: -5, cursor: "nwse-resize" }} />
               <div onMouseDown={(e) => beginDrag(e, i, r, "ne")} style={{ ...handleBase, top: -5, right: -5, cursor: "nesw-resize" }} />
