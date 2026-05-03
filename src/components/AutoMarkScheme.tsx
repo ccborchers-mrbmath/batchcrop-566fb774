@@ -638,6 +638,7 @@ function PageWithBoxes({
     width: handlePx,
     height: handlePx,
     zIndex: 2,
+    pointerEvents: "auto",
   };
   const borderPx = 2 / (zoom.scale || 1);
 
