@@ -644,7 +644,7 @@ function PageWithBoxes({
     zIndex: 2,
     pointerEvents: "auto",
   };
-  const borderPx = 2 / (zoom.scale || 1);
+  const borderPx = 1 / (zoom.scale || 1);
 
   return (
     <div className="flex flex-col gap-2 max-w-full w-full">
