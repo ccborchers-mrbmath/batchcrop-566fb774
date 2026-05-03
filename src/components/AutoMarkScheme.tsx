@@ -603,7 +603,7 @@ function PageWithBoxes({
         onShiftAllHorizontal(nextDx - lastDx);
         lastDx = nextDx;
         let y = snapY(start.y + dyN);
-        let h = start.h;
+        const h = start.h;
         y = Math.max(0, Math.min(1 - h, y));
         onRegionVerticalChange(idx, y, h);
         return;
