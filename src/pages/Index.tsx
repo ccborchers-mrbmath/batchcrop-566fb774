@@ -73,6 +73,7 @@ export default function Index() {
       previewUrl: URL.createObjectURL(file),
       status: "idle",
       regions: [],
+      splits: [],
     }));
 
     setImages((prev) => {
