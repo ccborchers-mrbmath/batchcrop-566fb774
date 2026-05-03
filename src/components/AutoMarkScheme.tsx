@@ -644,7 +644,7 @@ function PageWithBoxes({
     zIndex: 2,
     pointerEvents: "auto",
   };
-  const borderPx = 2 / (zoom.scale || 1);
+  const borderPx = 1 / (zoom.scale || 1);
 
   return (
     <div className="flex flex-col gap-2 max-w-full w-full">
@@ -706,7 +706,7 @@ function PageWithBoxes({
           )}
           {regions.map((r, i) => {
             const lowConf = r.confidence < 0.6;
-            const color = r.manual ? "hsl(var(--primary))" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
+            const color = r.manual ? "hsl(320 90% 60%)" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
             return (
               <div
                 key={i}
