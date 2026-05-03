@@ -14,7 +14,7 @@ import {
   DetectedRegion,
 } from "@/lib/autoMarkScheme";
 
-type Step = "idle" | "rendering" | "detecting" | "review" | "exporting";
+type Step = "idle" | "rendering" | "selecting" | "detecting" | "review" | "exporting";
 
 interface Props {
   onBack: () => void;
