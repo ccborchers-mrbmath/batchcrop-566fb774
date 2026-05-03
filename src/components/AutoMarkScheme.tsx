@@ -706,7 +706,7 @@ function PageWithBoxes({
           )}
           {regions.map((r, i) => {
             const lowConf = r.confidence < 0.6;
-            const color = r.manual ? "hsl(var(--primary))" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
+            const color = r.manual ? "hsl(320 90% 60%)" : (lowConf ? "hsl(40 90% 55%)" : "hsl(120 70% 55%)");
             return (
               <div
                 key={i}
