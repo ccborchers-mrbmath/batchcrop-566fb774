@@ -7,6 +7,8 @@ export interface DetectedRegion {
   isContinuationFromPrev: boolean;
   continuesOnNext: boolean;
   confidence: number;
+  /** True if the user manually adjusted this bbox — skip border snapping. */
+  manual?: boolean;
 }
 export interface PageDetection {
   pageIndex: number;
@@ -19,6 +21,7 @@ export interface PageDetection {
 export interface QuestionPiece {
   pageIndex: number;
   bbox: NormBBox; // normalized to that page
+  manual?: boolean;
 }
 export interface QuestionGroup {
   id: string;
@@ -122,7 +125,7 @@ export function groupIntoQuestions(detections: PageDetection[]): QuestionGroup[]
 
       if (wantsContinue && groups.length > 0) {
         const last = groups[groups.length - 1];
-        last.pieces.push({ pageIndex: page.pageIndex, bbox: r.bbox });
+        last.pieces.push({ pageIndex: page.pageIndex, bbox: r.bbox, manual: r.manual });
         if (r.label && (!last.label || /^p\d+_/.test(last.label))) {
           last.label = root ? `Q${root}` : r.label;
         }
@@ -131,7 +134,7 @@ export function groupIntoQuestions(detections: PageDetection[]): QuestionGroup[]
         groups.push({
           id: `${page.pageIndex}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
           label: root ? `Q${root}` : (r.label || `p${page.pageIndex + 1}_${idx + 1}`),
-          pieces: [{ pageIndex: page.pageIndex, bbox: r.bbox }],
+          pieces: [{ pageIndex: page.pageIndex, bbox: r.bbox, manual: r.manual }],
         });
         lastRoot = root;
       }
@@ -283,9 +286,12 @@ export async function buildQuestionImage(
       w: Math.round(piece.bbox.w * W),
       h: Math.round(piece.bbox.h * H),
     };
-    // Search window: 3% of page dimension is enough to find an outer table rule.
-    const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
-    const snap = snapToTableBorders(data, rawPx, searchPx);
+    // If user manually adjusted, use the bbox exactly. Otherwise snap to nearest table border.
+    let snap = rawPx;
+    if (!piece.manual) {
+      const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
+      snap = snapToTableBorders(data, rawPx, searchPx);
+    }
 
     const sx = Math.max(0, Math.min(W - 1, snap.x));
     const sy = Math.max(0, Math.min(H - 1, snap.y));
