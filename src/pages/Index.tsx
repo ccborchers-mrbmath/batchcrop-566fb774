@@ -17,6 +17,7 @@ import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
+type ImageSubMode = "regions" | "splits";
 
 interface ImageEntry {
   id: string;
@@ -24,6 +25,7 @@ interface ImageEntry {
   previewUrl: string;
   status: FileStatus;
   regions: Region[];
+  splits: number[]; // y-coords (real px) of horizontal split lines on the cropped image
 }
 
 export default function Index() {
