@@ -637,7 +637,15 @@ export default function Index() {
 
       {/* Body */}
       <div className="flex-1 overflow-hidden flex">
-        {numberingMode ? (
+        {autoMSMode ? (
+          <AutoMarkScheme
+            onBack={() => setAutoMSMode(false)}
+            onSendToQueue={(files) => {
+              addImageFiles(files, images.length === 0);
+              setAutoMSMode(false);
+            }}
+          />
+        ) : numberingMode ? (
           <NumberingEditor
             images={numberedImages}
             config={numberingConfig}
