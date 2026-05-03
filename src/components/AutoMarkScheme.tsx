@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Sparkles, ArrowLeft, Loader2, Download, Send, Trash2, RefreshCw } from "lucide-react";
+import { Upload, Sparkles, ArrowLeft, Loader2, Download, Send, Trash2, RefreshCw, X, Check } from "lucide-react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { pdfToImages } from "@/lib/pdfToImages";
