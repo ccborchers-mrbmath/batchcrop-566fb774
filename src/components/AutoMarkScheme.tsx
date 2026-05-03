@@ -580,40 +580,44 @@ function PageWithBoxes({
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    // Drag deltas must be divided by zoom scale to keep pixel-accurate motion.
-    const scale = zoom.scale || 1;
-    const baseW = rect.width / scale;
-    const baseH = rect.height / scale;
+    // The rect is already transformed by zoom, so screen deltas map back to the
+    // image by dividing by the scaled rect. This gives much finer motion when zoomed in.
+    const dragW = Math.max(1, rect.width);
+    const dragH = Math.max(1, rect.height);
     const startX = e.clientX;
     const startY = e.clientY;
     const start = { ...region.bbox };
     const startLeft = start.x;
     const startRight = start.x + start.w;
+    const startBottom = start.y + start.h;
+    const snapX = (n: number) => imgDims.nW > 0 ? Math.round(n * imgDims.nW) / imgDims.nW : n;
+    const snapY = (n: number) => imgDims.nH > 0 ? Math.round(n * imgDims.nH) / imgDims.nH : n;
 
     let lastDx = 0;
     const onMove = (ev: MouseEvent) => {
-      const dxN = (ev.clientX - startX) / baseW;
-      const dyN = (ev.clientY - startY) / baseH;
+      const dxN = (ev.clientX - startX) / dragW;
+      const dyN = (ev.clientY - startY) / dragH;
 
       if (mode === "move") {
-        onShiftAllHorizontal(dxN - lastDx);
-        lastDx = dxN;
-        let y = start.y + dyN;
-        let h = start.h;
+        const nextDx = snapX(dxN);
+        onShiftAllHorizontal(nextDx - lastDx);
+        lastDx = nextDx;
+        let y = snapY(start.y + dyN);
+        const h = start.h;
         y = Math.max(0, Math.min(1 - h, y));
         onRegionVerticalChange(idx, y, h);
         return;
       }
       if (mode === "w" || mode === "nw" || mode === "sw") {
-        onSetAllLeft(startLeft + dxN);
+        onSetAllLeft(snapX(startLeft + dxN));
       }
       if (mode === "e" || mode === "ne" || mode === "se") {
-        onSetAllRight(startRight + dxN);
+        onSetAllRight(snapX(startRight + dxN));
       }
       let y = start.y;
       let h = start.h;
-      if (mode.includes("n")) { y = start.y + dyN; h = start.h - dyN; }
-      if (mode.includes("s")) { h = start.h + dyN; }
+      if (mode.includes("n")) { y = snapY(start.y + dyN); h = startBottom - y; }
+      if (mode.includes("s")) { h = snapY(startBottom + dyN) - start.y; }
       if (h < 0.005) h = 0.005;
       y = Math.max(0, Math.min(1 - h, y));
       h = Math.min(1 - y, h);
