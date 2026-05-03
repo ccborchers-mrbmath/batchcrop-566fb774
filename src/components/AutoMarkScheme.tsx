@@ -713,19 +713,22 @@ function PageWithBoxes({
                   height: `${r.bbox.h * 100}%`,
                   border: `${borderPx}px solid ${color}`,
                   background: `${color.replace(")", " / 0.08)")}`,
-                  cursor: "move",
                   zIndex: 6,
+                  pointerEvents: "none",
                 }}
-                onMouseDown={(e) => beginDrag(e, i, r, "move")}
               >
                 <span
-                  className="absolute top-0 left-0 px-1.5 py-0.5 font-semibold pointer-events-none"
+                  className="absolute top-0 left-0 px-1.5 py-0.5 font-semibold"
                   style={{
                     background: color,
                     color: "hsl(var(--background))",
                     fontSize: `${12 / (zoom.scale || 1)}px`,
                     transformOrigin: "top left",
+                    cursor: "move",
+                    pointerEvents: "auto",
                   }}
+                  onMouseDown={(e) => beginDrag(e, i, r, "move")}
+                  title="Drag label to move region"
                 >
                   {r.label || "?"}
                   {r.isContinuationFromPrev && " ↑"}
