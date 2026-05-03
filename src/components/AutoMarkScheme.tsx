@@ -33,6 +33,8 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
   const [pagePreviewUrl, setPagePreviewUrl] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pagePreviews, setPagePreviews] = useState<string[]>([]);
+  const [excludedPages, setExcludedPages] = useState<Set<number>>(new Set());
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Build a preview URL for the selected page
