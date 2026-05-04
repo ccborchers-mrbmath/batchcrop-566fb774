@@ -215,6 +215,59 @@ export default function Index() {
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
 
+  const handleApplyBatch = async () => {
+    if (!images.length || !hasCrop) return;
+    setIsProcessing(true);
+    setImages((prev) => prev.map((img) => ({ ...img, status: "processing" })));
+
+    const updated = await Promise.all(
+      images.map(async (entry) => {
+        try {
+          const blob = cropMode === "whiteout"
+            ? await whiteOutImageFile(entry.file, crop)
+            : await cropImageFile(entry.file, crop);
+          const newFile = new File([blob], entry.file.name, { type: blob.type || entry.file.type });
+          URL.revokeObjectURL(entry.previewUrl);
+          // Regions/splits were defined in the cropped coordinate space; clear them since
+          // the image dimensions have changed and they would no longer line up.
+          return {
+            ...entry,
+            file: newFile,
+            previewUrl: URL.createObjectURL(blob),
+            status: "done" as const,
+            regions: cropMode === "whiteout" ? entry.regions : [],
+            splits: cropMode === "whiteout" ? entry.splits : [],
+          };
+        } catch {
+          return { ...entry, status: "error" as const };
+        }
+      })
+    );
+
+    // Update natural sizes — for crop mode, dimensions shrink; for whiteout they stay.
+    const newSizes: Record<string, { w: number; h: number }> = {};
+    updated.forEach((entry) => {
+      const old = naturalSizes[entry.id];
+      if (!old) return;
+      if (cropMode === "whiteout") {
+        newSizes[entry.id] = old;
+      } else {
+        newSizes[entry.id] = {
+          w: Math.max(1, old.w - crop.left - crop.right),
+          h: Math.max(1, old.h - crop.top - crop.bottom),
+        };
+      }
+    });
+
+    setNaturalSizes((s) => ({ ...s, ...newSizes }));
+    setImages(updated);
+    setCrop({ top: 0, right: 0, bottom: 0, left: 0 });
+    setIsProcessing(false);
+    setTimeout(() => {
+      setImages((prev) => prev.map((img) => ({ ...img, status: "idle" })));
+    }, 1500);
+  };
+
   const handleCropAndDownload = async () => {
     if (!images.length) return;
     setIsProcessing(true);
