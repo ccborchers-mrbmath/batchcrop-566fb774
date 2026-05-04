@@ -6,11 +6,10 @@ import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
 import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { RegionEditor } from "@/components/RegionEditor";
-import { SplitEditor } from "@/components/SplitEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
 import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
-import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, whiteOutImageFile, whiteOutRegions, splitImageHorizontally, splitFileName } from "@/lib/cropImage";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, RegionDrawMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
@@ -18,7 +17,6 @@ import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
-type ImageSubMode = "regions" | "splits";
 
 interface ImageEntry {
   id: string;
@@ -26,7 +24,6 @@ interface ImageEntry {
   previewUrl: string;
   status: FileStatus;
   regions: Region[];
-  splits: number[]; // y-coords (real px) of horizontal split lines on the cropped image
 }
 
 export default function Index() {
@@ -37,7 +34,7 @@ export default function Index() {
   const [regionMode, setRegionMode] = useState<RegionMode>("extract");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [imageSubMode, setImageSubMode] = useState<ImageSubMode>("regions");
+  const [regionDrawMode, setRegionDrawMode] = useState<RegionDrawMode>("box");
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
@@ -76,7 +73,6 @@ export default function Index() {
       previewUrl: URL.createObjectURL(file),
       status: "idle",
       regions: [],
-      splits: [],
     }));
 
     setImages((prev) => {
@@ -206,11 +202,7 @@ export default function Index() {
   };
 
   const updateRegions = useCallback((id: string, regions: Region[]) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions, splits: regions.length > 0 ? [] : img.splits } : img));
-  }, []);
-
-  const updateSplits = useCallback((id: string, splits: number[]) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, splits, regions: splits.length > 0 ? [] : img.regions } : img));
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions } : img));
   }, []);
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
