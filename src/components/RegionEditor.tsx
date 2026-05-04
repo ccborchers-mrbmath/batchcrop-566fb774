@@ -318,6 +318,10 @@ export function RegionEditor({
       { key: "e", style: { top: "50%", transform: "translateY(-50%)", right: -hh, width: hs, height: hs, cursor: "e-resize" } },
     ];
 
+    // Full-width regions only need top/bottom edge handles (vertical resizing).
+    if (r.fullWidth) {
+      return handles.filter((h) => h.key === "n" || h.key === "s");
+    }
     return handles;
   };
 
