@@ -831,20 +831,6 @@ export default function Index() {
                     currentIndex={selectedIdx}
                     totalImages={images.length}
                   />
-                ) : imageSubMode === "splits" ? (
-                  <SplitEditor
-                    imageUrl={selectedEntry.previewUrl}
-                    imageName={selectedEntry.file.name}
-                    croppedWidth={croppedW}
-                    croppedHeight={croppedH}
-                    splits={selectedEntry.splits}
-                    onChange={(s) => updateSplits(selectedEntry.id, s)}
-                    onRemove={() => removeImage(selectedEntry.id)}
-                    onPrev={selectedIdx > 0 ? goPrev : undefined}
-                    onNext={selectedIdx < images.length - 1 ? goNext : undefined}
-                    currentIndex={selectedIdx}
-                    totalImages={images.length}
-                  />
                 ) : (
                   <RegionEditor
                     imageUrl={selectedEntry.previewUrl}
@@ -862,6 +848,8 @@ export default function Index() {
                     totalImages={images.length}
                     regionMode={regionMode}
                     onRegionModeChange={setRegionMode}
+                    drawMode={regionDrawMode}
+                    onDrawModeChange={setRegionDrawMode}
                   />
                 )}
               </div>
