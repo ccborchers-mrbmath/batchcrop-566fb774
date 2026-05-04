@@ -290,9 +290,9 @@ export function RegionEditor({
 
   const liveRect = drawing
     ? {
-        left: Math.min(drawing.startX, drawing.curX),
+        left: drawMode === "row" ? 0 : Math.min(drawing.startX, drawing.curX),
         top: Math.min(drawing.startY, drawing.curY),
-        width: Math.abs(drawing.curX - drawing.startX),
+        width: drawMode === "row" ? displaySize.w : Math.abs(drawing.curX - drawing.startX),
         height: Math.abs(drawing.curY - drawing.startY),
       }
     : null;
