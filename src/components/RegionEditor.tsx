@@ -254,13 +254,17 @@ export function RegionEditor({
       const wPx = x2 - x1;
       const hPx = y2 - y1;
 
-      if (wPx >= 5 && hPx >= 5) {
+      // For "row" draw mode we only require vertical drag (height); width is auto-locked.
+      const meetsMinSize = drawMode === "row" ? hPx >= 5 : (wPx >= 5 && hPx >= 5);
+      if (meetsMinSize) {
+        const isFull = drawMode === "row";
         const newRegion: Region = {
           id: `${Date.now()}-${Math.random()}`,
-          x: Math.round(x1 * scaleX),
+          x: isFull ? 0 : Math.round(x1 * scaleX),
           y: Math.round(y1 * scaleY),
-          w: Math.round(wPx * scaleX),
+          w: isFull ? croppedWidth : Math.round(wPx * scaleX),
           h: Math.round(hPx * scaleY),
+          fullWidth: isFull || undefined,
         };
         onChange([...regions, newRegion]);
       }
