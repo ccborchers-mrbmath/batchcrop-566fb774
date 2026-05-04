@@ -220,7 +220,7 @@ export default function Index() {
             : await cropImageFile(entry.file, crop);
           const newFile = new File([blob], entry.file.name, { type: blob.type || entry.file.type });
           URL.revokeObjectURL(entry.previewUrl);
-          // Regions/splits were defined in the cropped coordinate space; clear them since
+          // Regions were defined in the cropped coordinate space; clear them since
           // the image dimensions have changed and they would no longer line up.
           return {
             ...entry,
