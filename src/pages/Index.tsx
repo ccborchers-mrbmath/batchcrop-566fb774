@@ -328,8 +328,6 @@ export default function Index() {
         const val = result.value;
         if (val.type === "regions" && val.blobs.length === 1) {
           saveAs(val.blobs[0], regionFileName(val.file.name, 0));
-        } else if (val.type === "splits" && val.blobs.length === 1) {
-          saveAs(val.blobs[0], splitFileName(val.file.name, 0, 1));
         } else if (val.type === "single") {
           saveAs(val.blob, val.name);
         } else {
