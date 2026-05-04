@@ -228,7 +228,6 @@ export default function Index() {
             previewUrl: URL.createObjectURL(blob),
             status: "done" as const,
             regions: cropMode === "whiteout" ? entry.regions : [],
-            splits: cropMode === "whiteout" ? entry.splits : [],
           };
         } catch {
           return { ...entry, status: "error" as const };
@@ -278,11 +277,6 @@ export default function Index() {
           ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
           : entry.file;
 
-        if (entry.splits.length > 0) {
-          const slices = await splitImageHorizontally(croppedBlob, entry.splits);
-          return { id: entry.id, type: "splits" as const, blobs: slices, file: entry.file };
-        }
-
         if (entry.regions.length > 0) {
           if (regionMode === "whiteout") {
             // White out the regions and return a single image
@@ -313,10 +307,6 @@ export default function Index() {
         if (val.type === "regions") {
           val.blobs.forEach((blob, idx) => {
             folder?.file(regionFileName(val.file.name, idx), blob);
-          });
-        } else if (val.type === "splits") {
-          val.blobs.forEach((blob, idx) => {
-            folder?.file(splitFileName(val.file.name, idx, val.blobs.length), blob);
           });
         } else {
           folder?.file(val.name, val.blob);
