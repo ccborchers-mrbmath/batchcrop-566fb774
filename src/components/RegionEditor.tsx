@@ -368,6 +368,36 @@ export function RegionEditor({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Draw shape toggle: Box vs Full-width Row */}
+          <div
+            className="flex items-center rounded overflow-hidden"
+            style={{ border: "1px solid hsl(var(--border))" }}
+          >
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: drawMode === "box" ? "hsl(var(--primary))" : "transparent",
+                color: drawMode === "box" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onDrawModeChange("box")}
+              title="Draw a free rectangular region"
+            >
+              <BoxSelect size={12} />
+              Box
+            </button>
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: drawMode === "row" ? "hsl(var(--primary))" : "transparent",
+                color: drawMode === "row" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onDrawModeChange("row")}
+              title="Draw a horizontal band — left/right are auto-locked to the image edges"
+            >
+              <RectangleHorizontal size={12} />
+              Row
+            </button>
+          </div>
           {/* Region mode toggle */}
           <div
             className="flex items-center rounded overflow-hidden"
