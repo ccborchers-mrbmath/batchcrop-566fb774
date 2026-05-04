@@ -677,6 +677,17 @@ export default function Index() {
               Number Images
             </button>
             <button
+              onClick={handleApplyBatch}
+              disabled={!hasCrop || isProcessing}
+              className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+              title={cropMode === "whiteout"
+                ? "Bake the white-out into all images so you can keep editing without re-uploading"
+                : "Bake the crop into all images so you can keep editing without re-uploading"}
+            >
+              <Scissors size={13} />
+              {cropMode === "whiteout" ? "Apply white-out" : "Apply crop"}
+            </button>
+            <button
               onClick={handleCropAndDownload}
               disabled={(!hasCrop && totalRegions === 0) || isProcessing}
               className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2"
