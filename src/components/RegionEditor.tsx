@@ -174,6 +174,8 @@ export function RegionEditor({
       // Handle resize / move
       if (resizing.current) {
         const { regionId, handle, startX, startY, startRegion } = resizing.current;
+        const region = regions.find((r) => r.id === regionId);
+        const isFull = !!region?.fullWidth;
         const { x, y } = getRelativePos(e);
         const dx = (x - startX) * scaleX; // real px delta
         const dy = (y - startY) * scaleY;
@@ -181,7 +183,9 @@ export function RegionEditor({
         let { x: rx, y: ry, w: rw, h: rh } = startRegion;
 
         if (handle === "move") {
-          rx = Math.max(0, Math.min(croppedWidth - rw, rx + dx));
+          if (!isFull) {
+            rx = Math.max(0, Math.min(croppedWidth - rw, rx + dx));
+          }
           ry = Math.max(0, Math.min(croppedHeight - rh, ry + dy));
         }
         if (handle === "nw" || handle === "n" || handle === "ne") {
@@ -192,13 +196,19 @@ export function RegionEditor({
         if (handle === "sw" || handle === "s" || handle === "se") {
           rh = Math.max(MIN_REGION_PX, rh + dy);
         }
-        if (handle === "nw" || handle === "w" || handle === "sw") {
+        if (!isFull && (handle === "nw" || handle === "w" || handle === "sw")) {
           const newX = rx + dx;
           const newW = rw - dx;
           if (newW >= MIN_REGION_PX) { rx = newX; rw = newW; }
         }
-        if (handle === "ne" || handle === "e" || handle === "se") {
+        if (!isFull && (handle === "ne" || handle === "e" || handle === "se")) {
           rw = Math.max(MIN_REGION_PX, rw + dx);
+        }
+
+        // For full-width regions, always lock x/w to the full image width
+        if (isFull) {
+          rx = 0;
+          rw = croppedWidth;
         }
 
         // Clamp to image bounds
