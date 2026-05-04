@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Trash2, X, ChevronLeft, ChevronRight, Scissors, Square } from "lucide-react";
-import { Region, RegionMode } from "@/lib/cropImage";
+import { Trash2, X, ChevronLeft, ChevronRight, Scissors, Square, RectangleHorizontal, BoxSelect } from "lucide-react";
+import { Region, RegionMode, RegionDrawMode } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
@@ -21,6 +21,8 @@ interface RegionEditorProps {
   totalImages?: number;
   regionMode: RegionMode;
   onRegionModeChange: (mode: RegionMode) => void;
+  drawMode: RegionDrawMode;
+  onDrawModeChange: (mode: RegionDrawMode) => void;
 }
 
 interface DrawState {
@@ -65,6 +67,8 @@ export function RegionEditor({
   totalImages,
   regionMode,
   onRegionModeChange,
+  drawMode,
+  onDrawModeChange,
 }: RegionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
