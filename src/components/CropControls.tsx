@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Scissors, Square } from "lucide-react";
+import { Check, Link, Scissors, Square } from "lucide-react";
 import { CropValues, CropMode } from "@/lib/cropImage";
 
 export type { CropValues, CropMode };
@@ -9,9 +9,11 @@ interface CropControlsProps {
   onChange: (values: CropValues) => void;
   mode: CropMode;
   onModeChange: (mode: CropMode) => void;
+  onApply?: () => void;
+  canApply?: boolean;
 }
 
-export function CropControls({ values, onChange, mode, onModeChange }: CropControlsProps) {
+export function CropControls({ values, onChange, mode, onModeChange, onApply, canApply }: CropControlsProps) {
   const [linked, setLinked] = useState(true);
 
   const handleChange = (edge: keyof CropValues, raw: string) => {
@@ -26,7 +28,7 @@ export function CropControls({ values, onChange, mode, onModeChange }: CropContr
   return (
     <div className="space-y-4">
       {/* Mode toggle */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <button
           onClick={() => onModeChange("crop")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
@@ -49,6 +51,19 @@ export function CropControls({ values, onChange, mode, onModeChange }: CropContr
           <Square size={12} />
           White out
         </button>
+        {onApply && (
+          <button
+            onClick={onApply}
+            disabled={!canApply}
+            title={mode === "whiteout"
+              ? "Bake the white-out into all images so you can keep editing without re-uploading"
+              : "Bake the crop into all images so you can keep editing without re-uploading"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Check size={12} />
+            Apply
+          </button>
+        )}
       </div>
 
       {/* Linked toggle */}
