@@ -277,7 +277,7 @@ export function RegionEditor({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drawing, scaleX, scaleY, regions, onChange, getRelativePos, croppedWidth, croppedHeight]);
+  }, [drawing, scaleX, scaleY, regions, onChange, getRelativePos, croppedWidth, croppedHeight, drawMode]);
 
   const removeRegion = (id: string) => onChange(regions.filter((r) => r.id !== id));
 
