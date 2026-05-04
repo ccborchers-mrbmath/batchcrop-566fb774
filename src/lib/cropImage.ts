@@ -143,7 +143,14 @@ export interface Region {
   y: number; // real pixels from top of (batch-cropped) image
   w: number;
   h: number;
+  /**
+   * If true, the region's horizontal extent is auto-locked to the full image width
+   * (x = 0, w = imageWidth). Useful for drawing horizontal "rows" / bands across exam papers.
+   */
+  fullWidth?: boolean;
 }
+
+export type RegionDrawMode = "box" | "row";
 
 /**
  * Extract a rectangular region (in real pixels) from a Blob/File.
@@ -234,75 +241,3 @@ export function regionFileName(original: string, index: number): string {
   return `${base}_region${index + 1}${ext}`;
 }
 
-/**
- * Slice an image into N+1 horizontal pieces along the given y-coordinates
- * (real pixels of the source blob). Returns blobs in top-to-bottom order.
- */
-export async function splitImageHorizontally(
-  source: Blob,
-  splitYs: number[]
-): Promise<Blob[]> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(source);
-    const img = new Image();
-
-    img.onload = async () => {
-      URL.revokeObjectURL(url);
-      const W = img.naturalWidth;
-      const H = img.naturalHeight;
-
-      // Sort, clamp, and dedupe split positions
-      const ys = Array.from(new Set(
-        splitYs
-          .map((y) => Math.round(y))
-          .filter((y) => y > 0 && y < H)
-      )).sort((a, b) => a - b);
-
-      // Build slice ranges [y0, y1)
-      const ranges: Array<[number, number]> = [];
-      let prev = 0;
-      for (const y of ys) {
-        if (y > prev) ranges.push([prev, y]);
-        prev = y;
-      }
-      if (H > prev) ranges.push([prev, H]);
-
-      const t = (source as File).type;
-      const mime =
-        t === "image/png"  ? "image/png"  :
-        t === "image/webp" ? "image/webp" :
-        t && t !== "" ? "image/jpeg" :
-        "image/png";
-
-      try {
-        const blobs: Blob[] = [];
-        for (const [y0, y1] of ranges) {
-          const sliceH = y1 - y0;
-          const canvas = document.createElement("canvas");
-          canvas.width = W;
-          canvas.height = sliceH;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("No canvas context");
-          ctx.drawImage(img, 0, y0, W, sliceH, 0, 0, W, sliceH);
-          const blob: Blob = await new Promise((res, rej) =>
-            canvas.toBlob((b) => b ? res(b) : rej(new Error("toBlob failed")), mime, 1.0)
-          );
-          blobs.push(blob);
-        }
-        resolve(blobs);
-      } catch (err) {
-        reject(err);
-      }
-    };
-
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
-    img.src = url;
-  });
-}
-
-export function splitFileName(original: string, index: number, total: number): string {
-  const dot = original.lastIndexOf(".");
-  const base = dot === -1 ? original : original.slice(0, dot);
-  const ext  = dot === -1 ? "" : original.slice(dot);
-  return `${base}_part${index + 1}of${total}${ext}`;
-}

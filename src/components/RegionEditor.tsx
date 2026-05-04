@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import { Trash2, X, ChevronLeft, ChevronRight, Scissors, Square } from "lucide-react";
-import { Region, RegionMode } from "@/lib/cropImage";
+import { Trash2, X, ChevronLeft, ChevronRight, Scissors, Square, RectangleHorizontal, BoxSelect } from "lucide-react";
+import { Region, RegionMode, RegionDrawMode } from "@/lib/cropImage";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
@@ -21,6 +21,8 @@ interface RegionEditorProps {
   totalImages?: number;
   regionMode: RegionMode;
   onRegionModeChange: (mode: RegionMode) => void;
+  drawMode: RegionDrawMode;
+  onDrawModeChange: (mode: RegionDrawMode) => void;
 }
 
 interface DrawState {
@@ -65,6 +67,8 @@ export function RegionEditor({
   totalImages,
   regionMode,
   onRegionModeChange,
+  drawMode,
+  onDrawModeChange,
 }: RegionEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -170,6 +174,8 @@ export function RegionEditor({
       // Handle resize / move
       if (resizing.current) {
         const { regionId, handle, startX, startY, startRegion } = resizing.current;
+        const region = regions.find((r) => r.id === regionId);
+        const isFull = !!region?.fullWidth;
         const { x, y } = getRelativePos(e);
         const dx = (x - startX) * scaleX; // real px delta
         const dy = (y - startY) * scaleY;
@@ -177,7 +183,9 @@ export function RegionEditor({
         let { x: rx, y: ry, w: rw, h: rh } = startRegion;
 
         if (handle === "move") {
-          rx = Math.max(0, Math.min(croppedWidth - rw, rx + dx));
+          if (!isFull) {
+            rx = Math.max(0, Math.min(croppedWidth - rw, rx + dx));
+          }
           ry = Math.max(0, Math.min(croppedHeight - rh, ry + dy));
         }
         if (handle === "nw" || handle === "n" || handle === "ne") {
@@ -188,13 +196,19 @@ export function RegionEditor({
         if (handle === "sw" || handle === "s" || handle === "se") {
           rh = Math.max(MIN_REGION_PX, rh + dy);
         }
-        if (handle === "nw" || handle === "w" || handle === "sw") {
+        if (!isFull && (handle === "nw" || handle === "w" || handle === "sw")) {
           const newX = rx + dx;
           const newW = rw - dx;
           if (newW >= MIN_REGION_PX) { rx = newX; rw = newW; }
         }
-        if (handle === "ne" || handle === "e" || handle === "se") {
+        if (!isFull && (handle === "ne" || handle === "e" || handle === "se")) {
           rw = Math.max(MIN_REGION_PX, rw + dx);
+        }
+
+        // For full-width regions, always lock x/w to the full image width
+        if (isFull) {
+          rx = 0;
+          rw = croppedWidth;
         }
 
         // Clamp to image bounds
@@ -240,13 +254,17 @@ export function RegionEditor({
       const wPx = x2 - x1;
       const hPx = y2 - y1;
 
-      if (wPx >= 5 && hPx >= 5) {
+      // For "row" draw mode we only require vertical drag (height); width is auto-locked.
+      const meetsMinSize = drawMode === "row" ? hPx >= 5 : (wPx >= 5 && hPx >= 5);
+      if (meetsMinSize) {
+        const isFull = drawMode === "row";
         const newRegion: Region = {
           id: `${Date.now()}-${Math.random()}`,
-          x: Math.round(x1 * scaleX),
+          x: isFull ? 0 : Math.round(x1 * scaleX),
           y: Math.round(y1 * scaleY),
-          w: Math.round(wPx * scaleX),
+          w: isFull ? croppedWidth : Math.round(wPx * scaleX),
           h: Math.round(hPx * scaleY),
+          fullWidth: isFull || undefined,
         };
         onChange([...regions, newRegion]);
       }
@@ -259,7 +277,7 @@ export function RegionEditor({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [drawing, scaleX, scaleY, regions, onChange, getRelativePos, croppedWidth, croppedHeight]);
+  }, [drawing, scaleX, scaleY, regions, onChange, getRelativePos, croppedWidth, croppedHeight, drawMode]);
 
   const removeRegion = (id: string) => onChange(regions.filter((r) => r.id !== id));
 
@@ -272,9 +290,9 @@ export function RegionEditor({
 
   const liveRect = drawing
     ? {
-        left: Math.min(drawing.startX, drawing.curX),
+        left: drawMode === "row" ? 0 : Math.min(drawing.startX, drawing.curX),
         top: Math.min(drawing.startY, drawing.curY),
-        width: Math.abs(drawing.curX - drawing.startX),
+        width: drawMode === "row" ? displaySize.w : Math.abs(drawing.curX - drawing.startX),
         height: Math.abs(drawing.curY - drawing.startY),
       }
     : null;
@@ -300,6 +318,10 @@ export function RegionEditor({
       { key: "e", style: { top: "50%", transform: "translateY(-50%)", right: -hh, width: hs, height: hs, cursor: "e-resize" } },
     ];
 
+    // Full-width regions only need top/bottom edge handles (vertical resizing).
+    if (r.fullWidth) {
+      return handles.filter((h) => h.key === "n" || h.key === "s");
+    }
     return handles;
   };
 
@@ -346,6 +368,36 @@ export function RegionEditor({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Draw shape toggle: Box vs Full-width Row */}
+          <div
+            className="flex items-center rounded overflow-hidden"
+            style={{ border: "1px solid hsl(var(--border))" }}
+          >
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: drawMode === "box" ? "hsl(var(--primary))" : "transparent",
+                color: drawMode === "box" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onDrawModeChange("box")}
+              title="Draw a free rectangular region"
+            >
+              <BoxSelect size={12} />
+              Box
+            </button>
+            <button
+              className="flex items-center gap-1 px-2 py-1 label-mono transition-colors"
+              style={{
+                background: drawMode === "row" ? "hsl(var(--primary))" : "transparent",
+                color: drawMode === "row" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+              }}
+              onClick={() => onDrawModeChange("row")}
+              title="Draw a horizontal band — left/right are auto-locked to the image edges"
+            >
+              <RectangleHorizontal size={12} />
+              Row
+            </button>
+          </div>
           {/* Region mode toggle */}
           <div
             className="flex items-center rounded overflow-hidden"

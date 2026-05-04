@@ -6,11 +6,10 @@ import { saveAs } from "file-saver";
 import { ImageCard } from "@/components/ImageCard";
 import { CropPreviewEditor } from "@/components/CropPreviewEditor";
 import { RegionEditor } from "@/components/RegionEditor";
-import { SplitEditor } from "@/components/SplitEditor";
 import { NormalizeDialog } from "@/components/NormalizeDialog";
 import { CropControls } from "@/components/CropControls";
 import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/NumberingEditor";
-import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, whiteOutImageFile, whiteOutRegions, splitImageHorizontally, splitFileName } from "@/lib/cropImage";
+import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, RegionDrawMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
@@ -18,7 +17,6 @@ import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
-type ImageSubMode = "regions" | "splits";
 
 interface ImageEntry {
   id: string;
@@ -26,7 +24,6 @@ interface ImageEntry {
   previewUrl: string;
   status: FileStatus;
   regions: Region[];
-  splits: number[]; // y-coords (real px) of horizontal split lines on the cropped image
 }
 
 export default function Index() {
@@ -37,7 +34,7 @@ export default function Index() {
   const [regionMode, setRegionMode] = useState<RegionMode>("extract");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [imageSubMode, setImageSubMode] = useState<ImageSubMode>("regions");
+  const [regionDrawMode, setRegionDrawMode] = useState<RegionDrawMode>("box");
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
@@ -76,7 +73,6 @@ export default function Index() {
       previewUrl: URL.createObjectURL(file),
       status: "idle",
       regions: [],
-      splits: [],
     }));
 
     setImages((prev) => {
@@ -206,11 +202,7 @@ export default function Index() {
   };
 
   const updateRegions = useCallback((id: string, regions: Region[]) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions, splits: regions.length > 0 ? [] : img.splits } : img));
-  }, []);
-
-  const updateSplits = useCallback((id: string, splits: number[]) => {
-    setImages((prev) => prev.map((img) => img.id === id ? { ...img, splits, regions: splits.length > 0 ? [] : img.regions } : img));
+    setImages((prev) => prev.map((img) => img.id === id ? { ...img, regions } : img));
   }, []);
 
   const hasCrop = crop.top > 0 || crop.right > 0 || crop.bottom > 0 || crop.left > 0;
@@ -228,7 +220,7 @@ export default function Index() {
             : await cropImageFile(entry.file, crop);
           const newFile = new File([blob], entry.file.name, { type: blob.type || entry.file.type });
           URL.revokeObjectURL(entry.previewUrl);
-          // Regions/splits were defined in the cropped coordinate space; clear them since
+          // Regions were defined in the cropped coordinate space; clear them since
           // the image dimensions have changed and they would no longer line up.
           return {
             ...entry,
@@ -236,7 +228,6 @@ export default function Index() {
             previewUrl: URL.createObjectURL(blob),
             status: "done" as const,
             regions: cropMode === "whiteout" ? entry.regions : [],
-            splits: cropMode === "whiteout" ? entry.splits : [],
           };
         } catch {
           return { ...entry, status: "error" as const };
@@ -286,11 +277,6 @@ export default function Index() {
           ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
           : entry.file;
 
-        if (entry.splits.length > 0) {
-          const slices = await splitImageHorizontally(croppedBlob, entry.splits);
-          return { id: entry.id, type: "splits" as const, blobs: slices, file: entry.file };
-        }
-
         if (entry.regions.length > 0) {
           if (regionMode === "whiteout") {
             // White out the regions and return a single image
@@ -322,10 +308,6 @@ export default function Index() {
           val.blobs.forEach((blob, idx) => {
             folder?.file(regionFileName(val.file.name, idx), blob);
           });
-        } else if (val.type === "splits") {
-          val.blobs.forEach((blob, idx) => {
-            folder?.file(splitFileName(val.file.name, idx, val.blobs.length), blob);
-          });
         } else {
           folder?.file(val.name, val.blob);
         }
@@ -346,8 +328,6 @@ export default function Index() {
         const val = result.value;
         if (val.type === "regions" && val.blobs.length === 1) {
           saveAs(val.blobs[0], regionFileName(val.file.name, 0));
-        } else if (val.type === "splits" && val.blobs.length === 1) {
-          saveAs(val.blobs[0], splitFileName(val.file.name, 0, 1));
         } else if (val.type === "single") {
           saveAs(val.blob, val.name);
         } else {
@@ -406,41 +386,7 @@ export default function Index() {
         ? (cropMode === "whiteout" ? await whiteOutImageFile(entry.file, crop) : await cropImageFile(entry.file, crop))
         : entry.file;
 
-      if (entry.splits.length > 0) {
-        const slices = await splitImageHorizontally(croppedBlob, entry.splits);
-        const sortedYs = [...entry.splits].map((y) => Math.round(y)).filter((y) => y > 0).sort((a, b) => a - b);
-        // Re-derive piece heights based on the sorted/clamped y list (mirrors splitImageHorizontally)
-        const totalH = (() => {
-          const size = naturalSizes[entry.id];
-          return size ? Math.max(1, size.h - (cropMode === "whiteout" ? 0 : crop.top + crop.bottom)) : 0;
-        })();
-        const totalW = (() => {
-          const size = naturalSizes[entry.id];
-          return size ? (cropMode === "whiteout" ? size.w : Math.max(1, size.w - crop.left - crop.right)) : 0;
-        })();
-        const heights: number[] = [];
-        let prev = 0;
-        for (const y of sortedYs) {
-          if (y < totalH && y > prev) { heights.push(y - prev); prev = y; }
-        }
-        if (totalH > prev) heights.push(totalH - prev);
-        slices.forEach((blob, idx) => {
-          const url = URL.createObjectURL(blob);
-          numbered.push({
-            id: `${entry.id}-split${idx}`,
-            blob,
-            previewUrl: url,
-            naturalWidth: totalW,
-            naturalHeight: heights[idx] ?? 0,
-            label: `${numberingConfig.prefix}${counter}`,
-            labelX: 0.02,
-            labelY: 0.02,
-            fileLabel: `${numberingConfig.prefix}${counter}`,
-            fileName: "",
-          });
-          counter++;
-        });
-      } else if (entry.regions.length > 0) {
+      if (entry.regions.length > 0) {
         if (regionMode === "whiteout") {
           // White out regions → single image
           const whited = await whiteOutRegions(croppedBlob, entry.regions);
@@ -800,134 +746,63 @@ export default function Index() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {/* Sub-mode toggle: Regions vs Splits */}
-                    <div
-                      className="flex items-center rounded overflow-hidden"
-                      style={{ border: "1px solid hsl(var(--border))" }}
-                    >
-                      <button
-                        onClick={() => setImageSubMode("regions")}
-                        className="flex-1 px-2 py-1.5 text-xs font-medium transition-colors"
+                    <p className="label-mono">
+                      Regions for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
+                    </p>
+                    {selectedEntry.regions.length > 0 && (
+                      <div
+                        className="rounded px-3 py-2 text-xs"
                         style={{
-                          background: imageSubMode === "regions" ? "hsl(var(--primary))" : "transparent",
-                          color: imageSubMode === "regions" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                          background: "hsl(120 70% 55% / 0.08)",
+                          border: "1px solid hsl(120 70% 55% / 0.25)",
+                          color: "hsl(120 70% 55%)",
                         }}
                       >
-                        Regions
-                      </button>
-                      <button
-                        onClick={() => setImageSubMode("splits")}
-                        className="flex-1 px-2 py-1.5 text-xs font-medium transition-colors"
-                        style={{
-                          background: imageSubMode === "splits" ? "hsl(var(--primary))" : "transparent",
-                          color: imageSubMode === "splits" ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-                        }}
-                      >
-                        Split
-                      </button>
-                    </div>
+                        {selectedEntry.regions.length} region{selectedEntry.regions.length !== 1 ? "s" : ""} drawn — batch crop will NOT be downloaded for this image.
+                      </div>
+                    )}
 
-                    {imageSubMode === "regions" ? (
-                      <>
-                        <p className="label-mono">
-                          Regions for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
-                        </p>
-                        {selectedEntry.splits.length > 0 && (
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            This image has split lines. Adding regions will clear them.
-                          </p>
-                        )}
-                        {selectedEntry.regions.length > 0 && (
+                    {selectedEntry.regions.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {selectedEntry.regions.map((r, i) => (
                           <div
-                            className="rounded px-3 py-2 text-xs"
+                            key={r.id}
+                            className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs"
                             style={{
-                              background: "hsl(120 70% 55% / 0.08)",
-                              border: "1px solid hsl(120 70% 55% / 0.25)",
-                              color: "hsl(120 70% 55%)",
+                              background: "hsl(var(--muted))",
+                              border: "1px solid hsl(var(--border))",
                             }}
                           >
-                            {selectedEntry.regions.length} region{selectedEntry.regions.length !== 1 ? "s" : ""} drawn — batch crop will NOT be downloaded for this image.
-                          </div>
-                        )}
-
-                        {selectedEntry.regions.length > 0 && (
-                          <div className="flex flex-col gap-1.5">
-                            {selectedEntry.regions.map((r, i) => (
-                              <div
-                                key={r.id}
-                                className="flex items-center justify-between px-2.5 py-1.5 rounded text-xs"
-                                style={{
-                                  background: "hsl(var(--muted))",
-                                  border: "1px solid hsl(var(--border))",
-                                }}
-                              >
-                                <span className="font-medium" style={{ color: "hsl(120 70% 55%)" }}>R{i + 1}</span>
-                                <span className="label-mono">{r.w}×{r.h}px</span>
-                                <button
-                                  onClick={() =>
-                                    updateRegions(
-                                      selectedEntry.id,
-                                      selectedEntry.regions.filter((x) => x.id !== r.id)
-                                    )
-                                  }
-                                  className="opacity-60 hover:opacity-100 transition-opacity"
-                                  style={{ color: "hsl(var(--destructive))" }}
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              </div>
-                            ))}
+                            <span className="font-medium" style={{ color: "hsl(120 70% 55%)" }}>
+                              R{i + 1}{r.fullWidth ? " · row" : ""}
+                            </span>
+                            <span className="label-mono">{r.w}×{r.h}px</span>
                             <button
-                              onClick={() => updateRegions(selectedEntry.id, [])}
-                              className="label-mono hover:text-primary transition-colors text-left mt-1"
-                              style={{ color: "hsl(var(--muted-foreground))" }}
+                              onClick={() =>
+                                updateRegions(
+                                  selectedEntry.id,
+                                  selectedEntry.regions.filter((x) => x.id !== r.id)
+                                )
+                              }
+                              className="opacity-60 hover:opacity-100 transition-opacity"
+                              style={{ color: "hsl(var(--destructive))" }}
                             >
-                              Clear all regions
+                              <Trash2 size={11} />
                             </button>
                           </div>
-                        )}
-                        {selectedEntry.regions.length === 0 && (
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            No regions yet. Use the preview to click &amp; drag a rectangle on the image.
-                          </p>
-                        )}
-                      </>
+                        ))}
+                        <button
+                          onClick={() => updateRegions(selectedEntry.id, [])}
+                          className="label-mono hover:text-primary transition-colors text-left mt-1"
+                          style={{ color: "hsl(var(--muted-foreground))" }}
+                        >
+                          Clear all regions
+                        </button>
+                      </div>
                     ) : (
-                      <>
-                        <p className="label-mono">
-                          Split lines for: <span style={{ color: "hsl(var(--foreground))" }}>{selectedEntry.file.name}</span>
-                        </p>
-                        {selectedEntry.regions.length > 0 && (
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            This image has regions. Adding split lines will clear them.
-                          </p>
-                        )}
-                        {selectedEntry.splits.length > 0 ? (
-                          <div
-                            className="rounded px-3 py-2 text-xs"
-                            style={{
-                              background: "hsl(280 80% 60% / 0.1)",
-                              border: "1px solid hsl(280 80% 60% / 0.3)",
-                              color: "hsl(280 80% 60%)",
-                            }}
-                          >
-                            {selectedEntry.splits.length} line{selectedEntry.splits.length !== 1 ? "s" : ""} → will export as {selectedEntry.splits.length + 1} parts.
-                          </div>
-                        ) : (
-                          <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                            Click anywhere on the preview image to add a horizontal split line. Drag to move, hover to remove.
-                          </p>
-                        )}
-                        {selectedEntry.splits.length > 0 && (
-                          <button
-                            onClick={() => updateSplits(selectedEntry.id, [])}
-                            className="label-mono hover:text-primary transition-colors text-left mt-1"
-                            style={{ color: "hsl(var(--muted-foreground))" }}
-                          >
-                            Clear all splits
-                          </button>
-                        )}
-                      </>
+                      <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        No regions yet. Use the preview to click &amp; drag on the image. Switch between <span style={{ color: "hsl(var(--foreground))" }}>Box</span> and <span style={{ color: "hsl(var(--foreground))" }}>Row</span> in the editor toolbar — Row regions auto-snap to the full image width.
+                      </p>
                     )}
                   </div>
                 )}
@@ -956,20 +831,6 @@ export default function Index() {
                     currentIndex={selectedIdx}
                     totalImages={images.length}
                   />
-                ) : imageSubMode === "splits" ? (
-                  <SplitEditor
-                    imageUrl={selectedEntry.previewUrl}
-                    imageName={selectedEntry.file.name}
-                    croppedWidth={croppedW}
-                    croppedHeight={croppedH}
-                    splits={selectedEntry.splits}
-                    onChange={(s) => updateSplits(selectedEntry.id, s)}
-                    onRemove={() => removeImage(selectedEntry.id)}
-                    onPrev={selectedIdx > 0 ? goPrev : undefined}
-                    onNext={selectedIdx < images.length - 1 ? goNext : undefined}
-                    currentIndex={selectedIdx}
-                    totalImages={images.length}
-                  />
                 ) : (
                   <RegionEditor
                     imageUrl={selectedEntry.previewUrl}
@@ -987,6 +848,8 @@ export default function Index() {
                     totalImages={images.length}
                     regionMode={regionMode}
                     onRegionModeChange={setRegionMode}
+                    drawMode={regionDrawMode}
+                    onDrawModeChange={setRegionDrawMode}
                   />
                 )}
               </div>
