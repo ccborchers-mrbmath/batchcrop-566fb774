@@ -143,7 +143,14 @@ export interface Region {
   y: number; // real pixels from top of (batch-cropped) image
   w: number;
   h: number;
+  /**
+   * If true, the region's horizontal extent is auto-locked to the full image width
+   * (x = 0, w = imageWidth). Useful for drawing horizontal "rows" / bands across exam papers.
+   */
+  fullWidth?: boolean;
 }
+
+export type RegionDrawMode = "box" | "row";
 
 /**
  * Extract a rectangular region (in real pixels) from a Blob/File.
