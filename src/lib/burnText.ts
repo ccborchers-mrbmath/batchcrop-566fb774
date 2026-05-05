@@ -263,8 +263,11 @@ export async function detectAndReplaceNumber(
 
       let eraseWidth: number, eraseHeight: number;
       let numberX: number, numberBaseline: number;
-      // Scale font size relative to image height (targeting ~1.4% of height)
-      const fontSize = Math.round(canvas.height * 0.014);
+      // Match font size to detected number height (cap-height ≈ 0.7 of font size).
+      // Fallback to 1.4% of image height when no bbox detected.
+      const fontSize = bbox
+        ? Math.max(8, Math.round(bbox.height / 0.7))
+        : Math.round(canvas.height * 0.014);
 
       if (bbox) {
         const padX = Math.round(fontSize * 0.3), padY = Math.round(fontSize * 0.2);
