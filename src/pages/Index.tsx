@@ -60,10 +60,19 @@ export default function Index() {
   const [autoMSMode, setAutoMSMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuth();
+  const syncedRef = useRef<Map<string, string>>(new Map()); // id -> storage path
+  const restoredRef = useRef(false);
+  const [restoring, setRestoring] = useState(false);
+
   useEffect(() => {
     return () => {
       images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     };
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
   const addImageFiles = useCallback((imageFiles: File[], selectFirst = false) => {
