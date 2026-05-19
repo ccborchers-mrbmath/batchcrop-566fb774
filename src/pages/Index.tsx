@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { AutoMarkScheme } from "@/components/AutoMarkScheme";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
