@@ -1046,31 +1046,7 @@ export default function Index() {
         ) : (
           /* ── EMPTY STATE ── */
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
-            <div className="text-center max-w-lg">
-              <h2 className="text-2xl font-semibold tracking-tight mb-3" style={{ color: "hsl(var(--foreground))" }}>
-                Crop dozens of images in seconds
-              </h2>
-              <p className="text-sm leading-relaxed mb-5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                BatchCrop lets you trim a precise number of pixels from every edge of a batch of images — all at once.
-                Upload a stack of JPGs, PNGs, or <strong style={{ color: "hsl(var(--foreground))" }}>PDF pages</strong>,
-                drag the crop handles or type exact pixel values, then download everything as a ZIP.
-                No account needed. Runs entirely in your browser.
-              </p>
-              <div className="flex flex-wrap justify-center gap-x-6 gap-y-1.5">
-                {[
-                  "Batch-crop entire PDF documents",
-                  "Pixel-precise edge control",
-                  "Draw individual regions per image",
-                  "Works offline — no uploads to a server",
-                  "Free, no sign-up required",
-                ].map((point) => (
-                  <span key={point} className="label-mono flex items-center gap-1.5">
-                    <span style={{ color: "hsl(var(--primary))" }}>✓</span>
-                    {point}
-                  </span>
-                ))}
-              </div>
-            </div>
+
             <div
               className={`drop-zone w-full max-w-xl rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${isDragging ? "active" : ""}`}
               style={{ minHeight: 280 }}
