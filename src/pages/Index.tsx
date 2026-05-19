@@ -714,6 +714,17 @@ export default function Index() {
           </button>
         )}
 
+        {user && (
+          <button
+            onClick={handleSignOut}
+            title={user.email ?? "Sign out"}
+            className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+          >
+            <LogOut size={13} />
+            Sign out
+          </button>
+        )}
+
         {images.length > 0 && !numberingMode && !autoMSMode && (
           <div className="flex items-center gap-2">
             <button onClick={clearAll} className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2">
