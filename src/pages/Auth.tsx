@@ -49,8 +49,33 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 gap-6">
+      <div className="text-center max-w-lg">
+        <h2 className="text-2xl font-semibold tracking-tight mb-3 text-foreground">
+          Crop dozens of images in seconds
+        </h2>
+        <p className="text-sm leading-relaxed mb-5 text-muted-foreground">
+          BatchCrop lets you trim a precise number of pixels from every edge of a batch of images — all at once.
+          Upload a stack of JPGs, PNGs, or <strong className="text-foreground">PDF pages</strong>,
+          drag the crop handles or type exact pixel values, then download everything as a ZIP.
+          Sign in to save your progress and pick up where you left off, on any device.
+        </p>
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-1.5">
+          {[
+            "Batch-crop entire PDF documents",
+            "Pixel-precise edge control",
+            "Draw individual regions per image",
+            "Auto-saves your uploads so you can resume anytime",
+          ].map((point) => (
+            <span key={point} className="label-mono flex items-center gap-1.5">
+              <span className="text-primary">✓</span>
+              {point}
+            </span>
+          ))}
+        </div>
+      </div>
       <div className="w-full max-w-md bg-card border border-border rounded-lg p-8 shadow-lg">
+
         <div className="flex items-center gap-2 mb-6">
           <Scissors className="text-primary" size={24} />
           <h1 className="text-xl font-semibold">BatchCrop</h1>
