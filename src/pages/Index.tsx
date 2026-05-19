@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles } from "lucide-react";
+import { Upload, Download, Scissors, Trash2, FileText, Layers, ImageIcon, Type, Sparkles, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { AutoMarkScheme } from "@/components/AutoMarkScheme";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -58,10 +60,19 @@ export default function Index() {
   const [autoMSMode, setAutoMSMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuth();
+  const syncedRef = useRef<Map<string, string>>(new Map()); // id -> storage path
+  const restoredRef = useRef(false);
+  const [restoring, setRestoring] = useState(false);
+
   useEffect(() => {
     return () => {
       images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     };
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
   const addImageFiles = useCallback((imageFiles: File[], selectFirst = false) => {
@@ -136,6 +147,101 @@ export default function Index() {
       setPdfProgress(null);
     }
   }, [addImageFiles]);
+
+  // ── Restore saved session on sign-in ──────────────────────────────
+  useEffect(() => {
+    if (!user || restoredRef.current) return;
+    restoredRef.current = true;
+    (async () => {
+      setRestoring(true);
+      try {
+        const { data } = await supabase
+          .from("user_sessions")
+          .select("file_paths, file_names")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        const paths: string[] = data?.file_paths ?? [];
+        const names: string[] = data?.file_names ?? [];
+        if (!paths.length) return;
+        const restored: File[] = [];
+        for (let i = 0; i < paths.length; i++) {
+          const { data: blob, error } = await supabase.storage.from("user-files").download(paths[i]);
+          if (error || !blob) continue;
+          const name = names[i] ?? `file-${i}`;
+          restored.push(new File([blob], name, { type: blob.type || "image/png" }));
+          // Pre-register path for this file's eventual id (matched after add)
+        }
+        if (restored.length) {
+          // Build entries directly so we can record id ↔ path mapping
+          const entries = restored.map((file, i) => ({
+            id: `${file.name}-${Date.now()}-${Math.random()}-${i}`,
+            file,
+            previewUrl: URL.createObjectURL(file),
+            status: "idle" as FileStatus,
+            regions: [] as Region[],
+            _path: paths[i],
+          }));
+          entries.forEach((e) => syncedRef.current.set(e.id, e._path));
+          setImages((prev) => [...prev, ...entries.map(({ _path, ...rest }) => rest)]);
+          // measure natural sizes
+          entries.forEach((entry) => {
+            const url = URL.createObjectURL(entry.file);
+            const im = new Image();
+            im.onload = () => {
+              setNaturalSizes((s) => ({ ...s, [entry.id]: { w: im.naturalWidth, h: im.naturalHeight } }));
+              URL.revokeObjectURL(url);
+            };
+            im.onerror = () => URL.revokeObjectURL(url);
+            im.src = url;
+          });
+          setSelectedId((cur) => cur ?? entries[0].id);
+        }
+      } finally {
+        setRestoring(false);
+      }
+    })();
+  }, [user]);
+
+  // ── Auto-save: keep storage + DB in sync with images ──────────────
+  useEffect(() => {
+    if (!user || restoring) return;
+    const timer = setTimeout(async () => {
+      const currentIds = new Set(images.map((i) => i.id));
+      // Delete any tracked paths whose ids are no longer present
+      const toDelete: string[] = [];
+      for (const [id, path] of syncedRef.current.entries()) {
+        if (!currentIds.has(id)) {
+          toDelete.push(path);
+          syncedRef.current.delete(id);
+        }
+      }
+      if (toDelete.length) {
+        await supabase.storage.from("user-files").remove(toDelete);
+      }
+      // Upload any new files
+      for (const img of images) {
+        if (syncedRef.current.has(img.id)) continue;
+        const safeName = img.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user.id}/${img.id}-${safeName}`;
+        const { error } = await supabase.storage
+          .from("user-files")
+          .upload(path, img.file, { upsert: true, contentType: img.file.type || "image/png" });
+        if (!error) syncedRef.current.set(img.id, path);
+      }
+      // Persist the current ordered list
+      const orderedIds = images.map((i) => i.id);
+      const file_paths = orderedIds.map((id) => syncedRef.current.get(id)).filter(Boolean) as string[];
+      const file_names = images
+        .filter((i) => syncedRef.current.has(i.id))
+        .map((i) => i.file.name);
+      await supabase
+        .from("user_sessions")
+        .upsert({ user_id: user.id, file_paths, file_names, updated_at: new Date().toISOString() });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [images, user, restoring]);
+
+
 
   const handleNormalize = useCallback(async (preset: AspectPreset) => {
     setImages((prev) => prev.map((img) => ({ ...img, status: "processing" as const })));
@@ -605,6 +711,17 @@ export default function Index() {
           >
             <Sparkles size={13} />
             Auto Mark Scheme
+          </button>
+        )}
+
+        {user && (
+          <button
+            onClick={handleSignOut}
+            title={user.email ?? "Sign out"}
+            className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+          >
+            <LogOut size={13} />
+            Sign out
           </button>
         )}
 

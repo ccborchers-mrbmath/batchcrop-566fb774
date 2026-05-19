@@ -14,7 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_sessions: {
+        Row: {
+          file_names: string[]
+          file_paths: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          file_names?: string[]
+          file_paths?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          file_names?: string[]
+          file_paths?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
