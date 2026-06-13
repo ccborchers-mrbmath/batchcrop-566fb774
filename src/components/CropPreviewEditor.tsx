@@ -239,20 +239,21 @@ export function CropPreviewEditor({
             {/* Crop shadow overlays */}
             <div
               className="absolute left-0 right-0 top-0 pointer-events-none"
-              style={{ height: topPx, background: overlayColor, borderBottom: `1px solid ${handleColor}` }}
+              style={{ height: topPx, background: overlayColor, borderBottom: `${1 / zoom.scale}px solid ${handleColor}` }}
             />
             <div
               className="absolute left-0 right-0 bottom-0 pointer-events-none"
-              style={{ height: bottomPx, background: overlayColor, borderTop: `1px solid ${handleColor}` }}
+              style={{ height: bottomPx, background: overlayColor, borderTop: `${1 / zoom.scale}px solid ${handleColor}` }}
             />
             <div
               className="absolute top-0 bottom-0 left-0 pointer-events-none"
-              style={{ width: leftPx, background: overlayColor, borderRight: `1px solid ${handleColor}` }}
+              style={{ width: leftPx, background: overlayColor, borderRight: `${1 / zoom.scale}px solid ${handleColor}` }}
             />
             <div
               className="absolute top-0 bottom-0 right-0 pointer-events-none"
-              style={{ width: rightPx, background: overlayColor, borderLeft: `1px solid ${handleColor}` }}
+              style={{ width: rightPx, background: overlayColor, borderLeft: `${1 / zoom.scale}px solid ${handleColor}` }}
             />
+
 
             {/* Draggable handles */}
             <div
