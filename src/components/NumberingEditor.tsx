@@ -720,6 +720,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
             draggable={false}
             className="block w-full"
             onLoad={updateImgSize}
+            style={{ imageRendering: zoom.scale > 1.5 ? "pixelated" : "auto" }}
           />
           {config.mode === "auto-detect" && autoPreviewLoading && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: "hsl(var(--background) / 0.5)" }}>
