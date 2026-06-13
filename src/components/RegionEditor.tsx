@@ -476,7 +476,7 @@ export function RegionEditor({
             draggable={false}
             className="block w-full"
             onLoad={updateDisplaySize}
-            style={{ display: "block" }}
+            style={{ display: "block", imageRendering: zoom.scale > 1.5 ? "pixelated" : "auto" }}
           />
 
           {/* Pixel grid overlay */}
