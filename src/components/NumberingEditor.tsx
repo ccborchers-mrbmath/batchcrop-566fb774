@@ -14,6 +14,8 @@ export interface NumberedImage {
   naturalHeight: number;
   /** Text burned onto the image (empty = no text burned) */
   label: string;
+  /** Whether a text box exists on this image (independent of whether it has text) */
+  hasLabelBox: boolean;
   /** Position as fraction 0-1 of image dimensions */
   labelX: number;
   labelY: number;
