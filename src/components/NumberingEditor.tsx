@@ -186,7 +186,7 @@ export function NumberingEditor({
                 const newStart = parseInt(e.target.value) || 0;
                 onConfigChange({ ...config, startNumber: newStart });
                 images.forEach((img, i) => {
-                  const newLabel = `${config.prefix}${newStart + i}`;
+                  const newLabel = `${config.prefix}${formatNumberWithLeadingZero(newStart + i)}`;
                   onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
