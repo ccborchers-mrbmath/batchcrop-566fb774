@@ -72,7 +72,7 @@ export function buildFullFileName(
   const batch = sanitized(batchName);
   const individual = sanitized(individualName);
 
-  if (batch && individual) return `${batch}_${individual}${ext}`;
+  if (batch && individual) return `${batch}${individual}${ext}`;
   if (batch) return `${batch}${ext}`;
   if (individual) return `${individual}${ext}`;
   return `image${ext}`;
