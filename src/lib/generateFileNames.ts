@@ -1,4 +1,12 @@
 /**
+ * Pad a generated number to two digits with a leading zero.
+ * "1" -> "01", "10" -> "10".
+ */
+export function formatNumberWithLeadingZero(num: number): string {
+  return num.toString().padStart(2, "0");
+}
+
+/**
  * Generate file names for numbered images with sub-part logic.
  *
  * Rules:
@@ -11,6 +19,7 @@
  *
  * @returns Array of individual file name parts (without batch prefix or extension).
  */
+
 export function generateFileNames(
   images: { fileLabel: string }[]
 ): string[] {

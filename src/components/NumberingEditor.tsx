@@ -3,7 +3,7 @@ import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Penc
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
-import { buildFullFileName } from "@/lib/generateFileNames";
+import { buildFullFileName, formatNumberWithLeadingZero } from "@/lib/generateFileNames";
 import { detectAndReplaceNumber } from "@/lib/burnText";
 
 export interface NumberedImage {
@@ -86,21 +86,26 @@ export function NumberingEditor({
 
   // When a label is changed, cascade numbering to subsequent labeled images
   const handleLabelChangeWithCascade = useCallback((idx: number, newLabel: string) => {
-    // Update this image's label and fileLabel
-    onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
-
     // Try to parse a trailing number (with optional prefix) to cascade
     const match = newLabel.match(/^(.*?)(\d+)$/);
     if (match) {
       const prefix = match[1];
-      let num = parseInt(match[2]) + 1;
+      const num = parseInt(match[2], 10);
+      const formattedLabel = `${prefix}${formatNumberWithLeadingZero(num)}`;
+
+      // Update this image's label and fileLabel with zero-padded number
+      onImageUpdate(images[idx].id, { label: formattedLabel, fileLabel: formattedLabel });
+
+      let nextNum = num + 1;
       for (let j = idx + 1; j < images.length; j++) {
         if (images[j].label) {
-          const cascaded = `${prefix}${num}`;
+          const cascaded = `${prefix}${formatNumberWithLeadingZero(nextNum)}`;
           onImageUpdate(images[j].id, { label: cascaded, fileLabel: cascaded });
-          num++;
+          nextNum++;
         }
       }
+    } else {
+      onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
     }
     // Regenerate file names after cascade
     setTimeout(() => onRegenerateFileNames(), 0);
@@ -162,7 +167,7 @@ export function NumberingEditor({
                 const newPrefix = e.target.value;
                 onConfigChange({ ...config, prefix: newPrefix });
                 images.forEach((img, i) => {
-                  const newLabel = `${newPrefix}${config.startNumber + i}`;
+                  const newLabel = `${newPrefix}${formatNumberWithLeadingZero(config.startNumber + i)}`;
                   onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
@@ -181,7 +186,7 @@ export function NumberingEditor({
                 const newStart = parseInt(e.target.value) || 0;
                 onConfigChange({ ...config, startNumber: newStart });
                 images.forEach((img, i) => {
-                  const newLabel = `${config.prefix}${newStart + i}`;
+                  const newLabel = `${config.prefix}${formatNumberWithLeadingZero(newStart + i)}`;
                   onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
@@ -319,8 +324,8 @@ export function NumberingEditor({
               let num = config.startNumber;
               images.forEach((img) => {
                 onImageUpdate(img.id, {
-                  label: `${config.prefix}${num}`,
-                  fileLabel: `${config.prefix}${num}`,
+                  label: `${config.prefix}${formatNumberWithLeadingZero(num)}`,
+                  fileLabel: `${config.prefix}${formatNumberWithLeadingZero(num)}`,
                   hasLabelBox: true,
                   labelX: preset.x,
                   labelY: preset.y,
@@ -435,12 +440,12 @@ export function NumberingEditor({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onImageUpdate(img.id, { label: "", hasLabelBox: false });
+                            onImageUpdate(img.id, { label: "", fileLabel: "", hasLabelBox: false });
                             let num = config.startNumber;
                             images.forEach((other) => {
                               if (other.id === img.id) return;
                               if (other.label) {
-                                onImageUpdate(other.id, { label: `${config.prefix}${num}` });
+                                onImageUpdate(other.id, { label: `${config.prefix}${formatNumberWithLeadingZero(num)}`, fileLabel: `${config.prefix}${formatNumberWithLeadingZero(num)}` });
                                 num++;
                               }
                             });
