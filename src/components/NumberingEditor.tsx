@@ -440,12 +440,12 @@ export function NumberingEditor({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onImageUpdate(img.id, { label: "", hasLabelBox: false });
+                            onImageUpdate(img.id, { label: "", fileLabel: "", hasLabelBox: false });
                             let num = config.startNumber;
                             images.forEach((other) => {
                               if (other.id === img.id) return;
                               if (other.label) {
-                                onImageUpdate(other.id, { label: `${config.prefix}${num}` });
+                                onImageUpdate(other.id, { label: `${config.prefix}${formatNumberWithLeadingZero(num)}`, fileLabel: `${config.prefix}${formatNumberWithLeadingZero(num)}` });
                                 num++;
                               }
                             });
