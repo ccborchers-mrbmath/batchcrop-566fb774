@@ -68,3 +68,15 @@ export function buildFullFileName(
   if (individual) return `${individual}${ext}`;
   return `image${ext}`;
 }
+
+/**
+ * Reduce an individual file name to its numeric stem for stitch-grouping.
+ * Strips a trailing alphabetic/roman sub-part, keeping leading zeroes verbatim.
+ * "something02a" -> "something02", "something02bii" -> "something02",
+ * "Q3" -> "Q3", "image_1" -> "image_1" (no trailing letters to strip).
+ * Returns the original string unchanged if it does not end in digits-then-letters.
+ */
+export function stitchGroupKey(individualName: string): string {
+  const m = individualName.match(/^(.*\d)[a-z]+$/i);
+  return m ? m[1] : individualName;
+}
