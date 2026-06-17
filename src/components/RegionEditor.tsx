@@ -76,6 +76,7 @@ export function RegionEditor({
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
   const [drawing, setDrawing] = useState<DrawState | null>(null);
   const [showGrid, setShowGrid] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
   const isDrawing = useRef(false);
   const resizing = useRef<ResizeState | null>(null);
 
@@ -88,13 +89,21 @@ export function RegionEditor({
     setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
   }, []);
 
+  const updateContainerWidth = useCallback(() => {
+    if (containerRef.current) setContainerWidth(containerRef.current.clientWidth);
+  }, []);
+
   useEffect(() => { setDisplaySize({ w: 0, h: 0 }); }, [imageUrl]);
 
   useEffect(() => {
-    const observer = new ResizeObserver(updateDisplaySize);
+    const observer = new ResizeObserver(() => {
+      updateDisplaySize();
+      updateContainerWidth();
+    });
     if (imgRef.current) observer.observe(imgRef.current);
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [updateDisplaySize]);
+  }, [updateDisplaySize, updateContainerWidth]);
 
   // Scale: display px → real px on the CROPPED image
   const scaleX = displaySize.w > 0 ? croppedWidth / displaySize.w : 1;
