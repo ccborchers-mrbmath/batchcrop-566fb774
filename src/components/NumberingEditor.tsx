@@ -324,8 +324,8 @@ export function NumberingEditor({
               let num = config.startNumber;
               images.forEach((img) => {
                 onImageUpdate(img.id, {
-                  label: `${config.prefix}${num}`,
-                  fileLabel: `${config.prefix}${num}`,
+                  label: `${config.prefix}${formatNumberWithLeadingZero(num)}`,
+                  fileLabel: `${config.prefix}${formatNumberWithLeadingZero(num)}`,
                   hasLabelBox: true,
                   labelX: preset.x,
                   labelY: preset.y,
