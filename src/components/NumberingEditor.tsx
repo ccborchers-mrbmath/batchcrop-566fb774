@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer } from "lucide-react";
+import { Download, Type, GripVertical, ChevronUp, ChevronDown, X, FileText, Pencil, ScanSearch, MousePointer, Layers } from "lucide-react";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
 import { PixelGridOverlay, GridToggle } from "@/components/PixelGrid";
@@ -55,8 +55,10 @@ interface NumberingEditorProps {
   onImageUpdate: (id: string, updates: Partial<NumberedImage>) => void;
   onReorder: (reordered: NumberedImage[]) => void;
   onExport: () => void;
+  onStitchAndDownload: () => void;
   onBack: () => void;
   isExporting: boolean;
+  isStitching?: boolean;
   batchName: string;
   onBatchNameChange: (name: string) => void;
   onRegenerateFileNames: () => void;
@@ -69,8 +71,10 @@ export function NumberingEditor({
   onImageUpdate,
   onReorder,
   onExport,
+  onStitchAndDownload,
   onBack,
   isExporting,
+  isStitching,
   batchName,
   onBatchNameChange,
   onRegenerateFileNames,
@@ -121,14 +125,25 @@ export function NumberingEditor({
           </div>
           <span className="label-mono">{images.length} image{images.length !== 1 ? "s" : ""}</span>
         </div>
-        <button
-          onClick={onExport}
-          disabled={isExporting || images.length === 0}
-          className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2"
-        >
-          <Download size={13} />
-          {isExporting ? "Exporting…" : images.length > 1 ? `Download ZIP (${images.length})` : "Download"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onStitchAndDownload}
+            disabled={isStitching || isExporting || images.length === 0}
+            title="Stitch images sharing the same number (e.g. 2a + 2bi → 2) and download."
+            className="btn-secondary px-3 py-1.5 text-sm flex items-center gap-2"
+          >
+            <Layers size={13} />
+            {isStitching ? "Stitching…" : "Stitch & Download"}
+          </button>
+          <button
+            onClick={onExport}
+            disabled={isExporting || isStitching || images.length === 0}
+            className="btn-primary px-4 py-1.5 text-sm flex items-center gap-2"
+          >
+            <Download size={13} />
+            {isExporting ? "Exporting…" : images.length > 1 ? `Download ZIP (${images.length})` : "Download"}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex min-h-0">
