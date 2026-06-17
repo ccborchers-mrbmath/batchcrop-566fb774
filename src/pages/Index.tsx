@@ -15,7 +15,8 @@ import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValu
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
-import { generateFileNames, buildFullFileName } from "@/lib/generateFileNames";
+import { generateFileNames, buildFullFileName, stitchGroupKey } from "@/lib/generateFileNames";
+import { stitchVertically } from "@/lib/stitchImages";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
 type SidebarTab = "batch" | "image";
@@ -56,6 +57,7 @@ export default function Index() {
     mode: "manual",
   });
   const [isNumberExporting, setIsNumberExporting] = useState(false);
+  const [isStitching, setIsStitching] = useState(false);
   const [batchName, setBatchName] = useState("");
   const [autoMSMode, setAutoMSMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -621,6 +623,52 @@ export default function Index() {
     setIsNumberExporting(false);
   }, [numberedImages, numberingConfig, batchName]);
 
+  const handleStitchAndDownload = useCallback(async () => {
+    if (numberedImages.length === 0) return;
+    setIsStitching(true);
+    try {
+      // Build groups in first-appearance order; preserve list order within each group.
+      const groupOrder: string[] = [];
+      const groupMap = new Map<string, NumberedImage[]>();
+      for (const img of numberedImages) {
+        const key = stitchGroupKey(img.fileName);
+        if (!groupMap.has(key)) {
+          groupMap.set(key, []);
+          groupOrder.push(key);
+        }
+        groupMap.get(key)!.push(img);
+      }
+
+      type Out = { name: string; blob: Blob };
+      const outputs: Out[] = [];
+      for (const key of groupOrder) {
+        const group = groupMap.get(key)!;
+        if (group.length === 1) {
+          const img = group[0];
+          const ext = img.blob.type === "image/png" ? ".png" : img.blob.type === "image/webp" ? ".webp" : ".jpg";
+          outputs.push({ name: buildFullFileName(batchName, img.fileName, ext), blob: img.blob });
+        } else {
+          const stitched = await stitchVertically(group.map((g) => g.blob));
+          outputs.push({ name: buildFullFileName(batchName, key, ".png"), blob: stitched });
+        }
+      }
+
+      if (outputs.length === 1) {
+        saveAs(outputs[0].blob, outputs[0].name);
+      } else {
+        const zip = new JSZip();
+        const folder = zip.folder("stitched");
+        for (const o of outputs) folder?.file(o.name, o.blob);
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const zipName = batchName ? `${batchName}_stitched.zip` : "stitched_images.zip";
+        saveAs(zipBlob, zipName);
+      }
+    } catch (err) {
+      console.error("Stitch failed:", err);
+    }
+    setIsStitching(false);
+  }, [numberedImages, batchName]);
+
   const exitNumberingMode = useCallback(() => {
     numberedImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
     setNumberedImages([]);
@@ -772,8 +820,10 @@ export default function Index() {
             onImageUpdate={updateNumberedImage}
             onReorder={(reordered) => setNumberedImages(reordered)}
             onExport={handleNumberedExport}
+            onStitchAndDownload={handleStitchAndDownload}
             onBack={exitNumberingMode}
             isExporting={isNumberExporting}
+            isStitching={isStitching}
             batchName={batchName}
             onBatchNameChange={setBatchName}
             onRegenerateFileNames={() => {
