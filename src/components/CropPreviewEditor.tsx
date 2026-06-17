@@ -22,7 +22,8 @@ interface CropPreviewEditorProps {
 
 type DragEdge = "top" | "right" | "bottom" | "left" | null;
 
-const HANDLE_THICKNESS = 6; // px hit target on each edge
+const HANDLE_THICKNESS = 6; // px hit target on each edge (screen space)
+const EDGE_PX = 1.5; // constant on-screen thickness of crop edge lines
 
 export function CropPreviewEditor({
   imageUrl,
