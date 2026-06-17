@@ -167,7 +167,7 @@ export function NumberingEditor({
                 const newPrefix = e.target.value;
                 onConfigChange({ ...config, prefix: newPrefix });
                 images.forEach((img, i) => {
-                  const newLabel = `${newPrefix}${config.startNumber + i}`;
+                  const newLabel = `${newPrefix}${formatNumberWithLeadingZero(config.startNumber + i)}`;
                   onImageUpdate(img.id, { label: newLabel, fileLabel: newLabel });
                 });
               }}
