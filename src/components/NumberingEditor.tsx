@@ -86,21 +86,26 @@ export function NumberingEditor({
 
   // When a label is changed, cascade numbering to subsequent labeled images
   const handleLabelChangeWithCascade = useCallback((idx: number, newLabel: string) => {
-    // Update this image's label and fileLabel
-    onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
-
     // Try to parse a trailing number (with optional prefix) to cascade
     const match = newLabel.match(/^(.*?)(\d+)$/);
     if (match) {
       const prefix = match[1];
-      let num = parseInt(match[2]) + 1;
+      const num = parseInt(match[2], 10);
+      const formattedLabel = `${prefix}${formatNumberWithLeadingZero(num)}`;
+
+      // Update this image's label and fileLabel with zero-padded number
+      onImageUpdate(images[idx].id, { label: formattedLabel, fileLabel: formattedLabel });
+
+      let nextNum = num + 1;
       for (let j = idx + 1; j < images.length; j++) {
         if (images[j].label) {
-          const cascaded = `${prefix}${num}`;
+          const cascaded = `${prefix}${formatNumberWithLeadingZero(nextNum)}`;
           onImageUpdate(images[j].id, { label: cascaded, fileLabel: cascaded });
-          num++;
+          nextNum++;
         }
       }
+    } else {
+      onImageUpdate(images[idx].id, { label: newLabel, fileLabel: newLabel });
     }
     // Regenerate file names after cascade
     setTimeout(() => onRegenerateFileNames(), 0);
