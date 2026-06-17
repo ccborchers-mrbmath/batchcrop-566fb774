@@ -62,16 +62,15 @@ export function ZoomControls({
         {pct}%
       </span>
 
-      {isZoomed && (
-        <button
-          onClick={onReset}
-          className="flex items-center justify-center w-6 h-6 rounded transition-opacity opacity-60 hover:opacity-100"
-          style={{ color: "hsl(var(--muted-foreground))" }}
-          title="Reset zoom"
-        >
-          <Maximize2 size={12} />
-        </button>
-      )}
+      <button
+        onClick={onReset}
+        disabled={scale === 1 && true === false ? true : false}
+        className="flex items-center justify-center w-6 h-6 rounded transition-opacity opacity-60 hover:opacity-100 disabled:opacity-30"
+        style={{ color: isZoomed ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}
+        title="Reset zoom"
+      >
+        <Maximize2 size={12} />
+      </button>
     </div>
   );
 }
