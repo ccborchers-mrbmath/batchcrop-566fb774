@@ -322,7 +322,7 @@ export function NumberingEditor({
           <button
             onClick={() => {
               images.forEach((img) => {
-                onImageUpdate(img.id, { label: "", fileLabel: "", labelX: 0, labelY: 0 });
+                onImageUpdate(img.id, { label: "", fileLabel: "", labelX: 0, labelY: 0, hasLabelBox: false });
               });
             }}
             className="btn-secondary px-3 py-2 text-sm w-full flex items-center justify-center gap-1.5"
