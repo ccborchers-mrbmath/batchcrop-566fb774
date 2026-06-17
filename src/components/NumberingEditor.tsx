@@ -415,12 +415,12 @@ export function NumberingEditor({
                           </span>
                         </div>
                       </div>
-                      {img.label && (
+                      {img.hasLabelBox && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onImageUpdate(img.id, { label: "" });
+                            onImageUpdate(img.id, { label: "", hasLabelBox: false });
                             let num = config.startNumber;
                             images.forEach((other) => {
                               if (other.id === img.id) return;
@@ -431,7 +431,7 @@ export function NumberingEditor({
                             });
                           }}
                           className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
-                          title="Remove burned text (keeps file label)"
+                          title="Remove text box"
                         >
                           <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
                         </button>
