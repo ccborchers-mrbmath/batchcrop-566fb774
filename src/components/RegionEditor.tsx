@@ -42,7 +42,8 @@ interface ResizeState {
   startRegion: { x: number; y: number; w: number; h: number }; // real px
 }
 
-const HANDLE_SIZE = 9; // px, visual size of corner/edge handles
+const HANDLE_SIZE = 9; // screen px, constant visual size of corner/edge handles
+const REGION_BORDER_PX = 1.5; // constant on-screen border thickness
 const MIN_REGION_PX = 5; // minimum real px for width/height
 
 const HANDLE_CURSORS: Record<ResizeHandle, string> = {
