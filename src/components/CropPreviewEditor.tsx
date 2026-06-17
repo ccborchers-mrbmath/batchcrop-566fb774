@@ -45,6 +45,7 @@ export function CropPreviewEditor({
   const startCrop = useRef<CropValues>({ top: 0, right: 0, bottom: 0, left: 0 });
   const [showGrid, setShowGrid] = useState(false);
   const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const imgRef = useRef<HTMLImageElement>(null);
 
@@ -57,15 +58,23 @@ export function CropPreviewEditor({
     setDisplaySize({ w: img.offsetWidth, h: img.offsetHeight });
   }, []);
 
+  const updateContainerWidth = useCallback(() => {
+    if (containerRef.current) setContainerWidth(containerRef.current.clientWidth);
+  }, []);
+
   useEffect(() => {
     setDisplaySize({ w: 0, h: 0 });
   }, [imageUrl]);
 
   useEffect(() => {
-    const observer = new ResizeObserver(updateDisplaySize);
+    const observer = new ResizeObserver(() => {
+      updateDisplaySize();
+      updateContainerWidth();
+    });
     if (imgRef.current) observer.observe(imgRef.current);
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [updateDisplaySize]);
+  }, [updateDisplaySize, updateContainerWidth]);
 
   // Scale factor: display px → real px
   const scaleX = displaySize.w > 0 ? naturalWidth / displaySize.w : 1;
