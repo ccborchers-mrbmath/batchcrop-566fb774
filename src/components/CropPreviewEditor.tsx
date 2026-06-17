@@ -224,7 +224,7 @@ export function CropPreviewEditor({
           }}
           onMouseDown={onPanMouseDown}
         >
-          {/* Zoomed inner wrapper */}
+          {/* Zoomed inner wrapper: image + pixel grid only */}
           <div
             className="relative"
             style={{
@@ -239,53 +239,12 @@ export function CropPreviewEditor({
               alt={imageName}
               draggable={false}
               className="block w-full"
-              onLoad={updateDisplaySize}
+              onLoad={() => { updateDisplaySize(); updateContainerWidth(); }}
               style={{ display: "block", imageRendering: zoom.scale > 1.5 ? "pixelated" : "auto" }}
             />
 
-            {/* Pixel grid overlay */}
+            {/* Pixel grid overlay — stays inside the transform to align with image pixels */}
             {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={naturalWidth} naturalHeight={naturalHeight} zoomScale={zoom.scale} />}
-
-            {/* Crop shadow overlays */}
-            <div
-              className="absolute left-0 right-0 top-0 pointer-events-none"
-              style={{ height: topPx, background: overlayColor, borderBottom: `${1 / zoom.scale}px solid ${handleColor}` }}
-            />
-            <div
-              className="absolute left-0 right-0 bottom-0 pointer-events-none"
-              style={{ height: bottomPx, background: overlayColor, borderTop: `${1 / zoom.scale}px solid ${handleColor}` }}
-            />
-            <div
-              className="absolute top-0 bottom-0 left-0 pointer-events-none"
-              style={{ width: leftPx, background: overlayColor, borderRight: `${1 / zoom.scale}px solid ${handleColor}` }}
-            />
-            <div
-              className="absolute top-0 bottom-0 right-0 pointer-events-none"
-              style={{ width: rightPx, background: overlayColor, borderLeft: `${1 / zoom.scale}px solid ${handleColor}` }}
-            />
-
-
-            {/* Draggable handles */}
-            <div
-              className="absolute z-10"
-              style={{ top: topPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
-              onMouseDown={(e) => onMouseDown(e, "top")}
-            />
-            <div
-              className="absolute z-10"
-              style={{ bottom: bottomPx - HANDLE_THICKNESS, left: 0, right: 0, height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none" }}
-              onMouseDown={(e) => onMouseDown(e, "bottom")}
-            />
-            <div
-              className="absolute z-10"
-              style={{ left: leftPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
-              onMouseDown={(e) => onMouseDown(e, "left")}
-            />
-            <div
-              className="absolute z-10"
-              style={{ right: rightPx - HANDLE_THICKNESS, top: 0, bottom: 0, width: HANDLE_THICKNESS * 2, cursor: "ew-resize", touchAction: "none" }}
-              onMouseDown={(e) => onMouseDown(e, "right")}
-            />
 
             {/* Hint when no crop set */}
             {!hasCrop && (
@@ -302,6 +261,57 @@ export function CropPreviewEditor({
               </div>
             )}
           </div>
+
+          {/* Screen-space selection chrome overlay (NOT transformed) */}
+          {displaySize.w > 0 && displaySize.h > 0 && (() => {
+            const s = zoom.scale;
+            const dW = displaySize.w;
+            const dH = displaySize.h;
+            const Wc = containerWidth || dW;
+            // Image edges in screen space (relative to container)
+            const imgLeft = (0 - dW / 2) * s + Wc / 2 + zoom.offsetX;
+            const imgRight = (dW - dW / 2) * s + Wc / 2 + zoom.offsetX;
+            const imgTop = zoom.offsetY;
+            const imgBottom = dH * s + zoom.offsetY;
+            // Crop edges in screen space
+            const cropTop = topPx * s + zoom.offsetY;
+            const cropBottom = (dH - bottomPx) * s + zoom.offsetY;
+            const cropLeft = (leftPx - dW / 2) * s + Wc / 2 + zoom.offsetX;
+            const cropRight = (dW - rightPx - dW / 2) * s + Wc / 2 + zoom.offsetX;
+            return (
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Shaded masks for cropped-away regions */}
+                <div className="absolute" style={{ left: imgLeft, top: imgTop, width: Math.max(0, imgRight - imgLeft), height: Math.max(0, cropTop - imgTop), background: overlayColor }} />
+                <div className="absolute" style={{ left: imgLeft, top: cropBottom, width: Math.max(0, imgRight - imgLeft), height: Math.max(0, imgBottom - cropBottom), background: overlayColor }} />
+                <div className="absolute" style={{ left: imgLeft, top: cropTop, width: Math.max(0, cropLeft - imgLeft), height: Math.max(0, cropBottom - cropTop), background: overlayColor }} />
+                <div className="absolute" style={{ left: cropRight, top: cropTop, width: Math.max(0, imgRight - cropRight), height: Math.max(0, cropBottom - cropTop), background: overlayColor }} />
+
+                {/* Constant-thickness edge lines */}
+                <div className="absolute" style={{ left: imgLeft, top: cropTop - EDGE_PX / 2, width: Math.max(0, imgRight - imgLeft), height: EDGE_PX, background: handleColor }} />
+                <div className="absolute" style={{ left: imgLeft, top: cropBottom - EDGE_PX / 2, width: Math.max(0, imgRight - imgLeft), height: EDGE_PX, background: handleColor }} />
+                <div className="absolute" style={{ left: cropLeft - EDGE_PX / 2, top: imgTop, width: EDGE_PX, height: Math.max(0, imgBottom - imgTop), background: handleColor }} />
+                <div className="absolute" style={{ left: cropRight - EDGE_PX / 2, top: imgTop, width: EDGE_PX, height: Math.max(0, imgBottom - imgTop), background: handleColor }} />
+
+                {/* Draggable hit-target handles (screen-space) */}
+                <div
+                  style={{ position: "absolute", left: imgLeft, top: cropTop - HANDLE_THICKNESS, width: Math.max(0, imgRight - imgLeft), height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none", pointerEvents: "auto", zIndex: 10 }}
+                  onMouseDown={(e) => onMouseDown(e, "top")}
+                />
+                <div
+                  style={{ position: "absolute", left: imgLeft, top: cropBottom - HANDLE_THICKNESS, width: Math.max(0, imgRight - imgLeft), height: HANDLE_THICKNESS * 2, cursor: "ns-resize", touchAction: "none", pointerEvents: "auto", zIndex: 10 }}
+                  onMouseDown={(e) => onMouseDown(e, "bottom")}
+                />
+                <div
+                  style={{ position: "absolute", left: cropLeft - HANDLE_THICKNESS, top: imgTop, width: HANDLE_THICKNESS * 2, height: Math.max(0, imgBottom - imgTop), cursor: "ew-resize", touchAction: "none", pointerEvents: "auto", zIndex: 10 }}
+                  onMouseDown={(e) => onMouseDown(e, "left")}
+                />
+                <div
+                  style={{ position: "absolute", left: cropRight - HANDLE_THICKNESS, top: imgTop, width: HANDLE_THICKNESS * 2, height: Math.max(0, imgBottom - imgTop), cursor: "ew-resize", touchAction: "none", pointerEvents: "auto", zIndex: 10 }}
+                  onMouseDown={(e) => onMouseDown(e, "right")}
+                />
+              </div>
+            );
+          })()}
         </div>
 
         {/* Pixel inputs */}
