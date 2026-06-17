@@ -337,7 +337,7 @@ export function RegionEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between sticky top-0 z-20 py-2 -my-2" style={{ background: "hsl(var(--background))" }}>
         <div className="flex items-center gap-2">
           {/* Prev / Next navigation */}
           {(onPrev || onNext) && (
