@@ -303,10 +303,10 @@ export function NumberingEditor({
               const preset = POSITION_PRESETS[config.position];
               let num = config.startNumber;
               images.forEach((img) => {
-                if (img.label === "") return; // skip unlabeled images
                 onImageUpdate(img.id, {
                   label: `${config.prefix}${num}`,
                   fileLabel: `${config.prefix}${num}`,
+                  hasLabelBox: true,
                   labelX: preset.x,
                   labelY: preset.y,
                 });
