@@ -14,6 +14,8 @@ export interface NumberedImage {
   naturalHeight: number;
   /** Text burned onto the image (empty = no text burned) */
   label: string;
+  /** Whether a text box exists on this image (independent of whether it has text) */
+  hasLabelBox: boolean;
   /** Position as fraction 0-1 of image dimensions */
   labelX: number;
   labelY: number;
@@ -320,7 +322,7 @@ export function NumberingEditor({
           <button
             onClick={() => {
               images.forEach((img) => {
-                onImageUpdate(img.id, { label: "", fileLabel: "", labelX: 0, labelY: 0 });
+                onImageUpdate(img.id, { label: "", fileLabel: "", labelX: 0, labelY: 0, hasLabelBox: false });
               });
             }}
             className="btn-secondary px-3 py-2 text-sm w-full flex items-center justify-center gap-1.5"
@@ -413,12 +415,12 @@ export function NumberingEditor({
                           </span>
                         </div>
                       </div>
-                      {img.label && (
+                      {img.hasLabelBox && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onImageUpdate(img.id, { label: "" });
+                            onImageUpdate(img.id, { label: "", hasLabelBox: false });
                             let num = config.startNumber;
                             images.forEach((other) => {
                               if (other.id === img.id) return;
@@ -429,7 +431,7 @@ export function NumberingEditor({
                             });
                           }}
                           className="shrink-0 p-0.5 rounded hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
-                          title="Remove burned text (keeps file label)"
+                          title="Remove text box"
                         >
                           <X size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
                         </button>
@@ -730,7 +732,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
           {/* Pixel grid overlay */}
           {showGrid && <PixelGridOverlay displayWidth={imgSize.w} displayHeight={imgSize.h} naturalWidth={image.naturalWidth} naturalHeight={image.naturalHeight} zoomScale={zoom.scale} />}
           {/* Text box overlay */}
-          {imgSize.w > 0 && image.label && config.mode === "manual" && (
+          {imgSize.w > 0 && image.hasLabelBox && config.mode === "manual" && (
             <div
               className="absolute flex items-start"
               style={{
@@ -756,6 +758,8 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
                   whiteSpace: "nowrap",
                   userSelect: "none",
                   border: "1px dashed hsl(var(--primary) / 0.5)",
+                  minWidth: `${displayFontSize * 2}px`,
+                  minHeight: displayFontSize,
                 }}
               >
                 {editingLabel ? (
@@ -775,12 +779,20 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
                       width: `${Math.max(2, image.label.length + 1)}ch`,
                     }}
                   />
-                ) : (
+                ) : image.label ? (
                   <span>
                     {image.label}
                     <GripVertical
                       size={Math.max(10, displayFontSize * 0.6)}
                       className="inline-block ml-1 opacity-40"
+                      style={{ verticalAlign: "text-bottom" }}
+                    />
+                  </span>
+                ) : (
+                  <span style={{ display: "inline-block", minWidth: `${displayFontSize * 1.5}px` }}>
+                    <GripVertical
+                      size={Math.max(10, displayFontSize * 0.6)}
+                      className="inline-block opacity-40"
                       style={{ verticalAlign: "text-bottom" }}
                     />
                   </span>
