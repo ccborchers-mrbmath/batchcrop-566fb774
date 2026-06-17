@@ -526,11 +526,11 @@ export default function Index() {
               previewUrl: url,
               naturalWidth: region.w,
               naturalHeight: region.h,
-              label: `${numberingConfig.prefix}${counter}`,
+              label: `${numberingConfig.prefix}${formatNumberWithLeadingZero(counter)}`,
               hasLabelBox: true,
               labelX: 0.02,
               labelY: 0.02,
-              fileLabel: `${numberingConfig.prefix}${counter}`,
+              fileLabel: `${numberingConfig.prefix}${formatNumberWithLeadingZero(counter)}`,
               fileName: "",
             });
             counter++;
