@@ -15,7 +15,7 @@ import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValu
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
-import { generateFileNames, buildFullFileName, stitchGroupKey } from "@/lib/generateFileNames";
+import { generateFileNames, buildFullFileName, stitchGroupKey, formatNumberWithLeadingZero } from "@/lib/generateFileNames";
 import { stitchVertically } from "@/lib/stitchImages";
 
 type FileStatus = "idle" | "processing" | "done" | "error";
