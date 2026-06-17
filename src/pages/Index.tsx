@@ -525,6 +525,7 @@ export default function Index() {
               naturalWidth: region.w,
               naturalHeight: region.h,
               label: `${numberingConfig.prefix}${counter}`,
+              hasLabelBox: true,
               labelX: 0.02,
               labelY: 0.02,
               fileLabel: `${numberingConfig.prefix}${counter}`,
