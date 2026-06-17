@@ -470,7 +470,7 @@ export function RegionEditor({
         }}
         onMouseDown={onContainerMouseDown}
       >
-        {/* Zoomed inner wrapper */}
+        {/* Zoomed inner wrapper: image + pixel grid only */}
         <div
           className="relative"
           style={{
@@ -485,83 +485,12 @@ export function RegionEditor({
             alt={imageName}
             draggable={false}
             className="block w-full"
-            onLoad={updateDisplaySize}
+            onLoad={() => { updateDisplaySize(); updateContainerWidth(); }}
             style={{ display: "block", imageRendering: zoom.scale > 1.5 ? "pixelated" : "auto" }}
           />
 
-          {/* Pixel grid overlay */}
+          {/* Pixel grid overlay — stays inside transform to align with image pixels */}
           {showGrid && <PixelGridOverlay displayWidth={displaySize.w} displayHeight={displaySize.h} naturalWidth={croppedWidth} naturalHeight={croppedHeight} zoomScale={zoom.scale} />}
-
-          {/* Saved regions with resize handles */}
-          {displaySize.w > 0 &&
-            regions.map((r, i) => {
-              const d = regionDisplayRect(r);
-              const handles = buildHandles(r, d);
-              return (
-                <div
-                  key={r.id}
-                  className="absolute"
-                  style={{
-                    left: d.left,
-                    top: d.top,
-                    width: d.width,
-                    height: d.height,
-                    border: `2px solid ${regionColor}`,
-                    background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {/* Label */}
-                  <span
-                    className="absolute top-0.5 left-1 label-mono pointer-events-none"
-                    style={{ color: regionColor, fontSize: "0.6rem" }}
-                  >
-                    R{i + 1}
-                  </span>
-
-                  {/* Move handle (body) */}
-                  <div
-                    className="absolute inset-2"
-                    style={{ cursor: "move", pointerEvents: "auto" }}
-                    onMouseDown={(e) => onHandleMouseDown(e, r.id, "move")}
-                    title="Drag to move"
-                  />
-
-                  {/* Resize handles */}
-                  {handles.map(({ key, style }) => (
-                    <div
-                      key={key}
-                      className="absolute rounded-sm"
-                      style={{
-                        ...style,
-                        width: HANDLE_SIZE,
-                        height: HANDLE_SIZE,
-                        background: handleBg,
-                        border: `2px solid ${regionColor}`,
-                        pointerEvents: "auto",
-                        zIndex: 10,
-                      }}
-                      onMouseDown={(e) => onHandleMouseDown(e, r.id, key)}
-                    />
-                  ))}
-                </div>
-              );
-            })}
-
-          {/* Live drawing rect */}
-          {liveRect && liveRect.width > 0 && liveRect.height > 0 && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: liveRect.left,
-                top: liveRect.top,
-                width: liveRect.width,
-                height: liveRect.height,
-                border: `2px dashed ${regionColor}`,
-                background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
-              }}
-            />
-          )}
 
           {regions.length === 0 && !drawing && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -577,6 +506,95 @@ export function RegionEditor({
             </div>
           )}
         </div>
+
+        {/* Screen-space selection chrome overlay (NOT transformed) */}
+        {displaySize.w > 0 && (() => {
+          const s = zoom.scale;
+          const dW = displaySize.w;
+          const Wc = containerWidth || dW;
+          const toScreen = (dx: number, dy: number) => ({
+            x: (dx - dW / 2) * s + Wc / 2 + zoom.offsetX,
+            y: dy * s + zoom.offsetY,
+          });
+          const hh = HANDLE_SIZE / 2;
+          return (
+            <div className="absolute inset-0 pointer-events-none">
+              {regions.map((r, i) => {
+                const d = regionDisplayRect(r);
+                const tl = toScreen(d.left, d.top);
+                const sw = d.width * s;
+                const sh = d.height * s;
+                const handles = buildHandles(r, d);
+                return (
+                  <div
+                    key={r.id}
+                    className="absolute"
+                    style={{
+                      left: tl.x,
+                      top: tl.y,
+                      width: sw,
+                      height: sh,
+                      border: `${REGION_BORDER_PX}px solid ${regionColor}`,
+                      background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <span
+                      className="absolute top-0.5 left-1 label-mono pointer-events-none"
+                      style={{ color: regionColor, fontSize: "0.6rem" }}
+                    >
+                      R{i + 1}
+                    </span>
+
+                    {/* Move handle (body) */}
+                    <div
+                      className="absolute inset-2"
+                      style={{ cursor: "move", pointerEvents: "auto" }}
+                      onMouseDown={(e) => onHandleMouseDown(e, r.id, "move")}
+                      title="Drag to move"
+                    />
+
+                    {/* Resize handles */}
+                    {handles.map(({ key, style }) => (
+                      <div
+                        key={key}
+                        className="absolute rounded-sm"
+                        style={{
+                          ...style,
+                          width: HANDLE_SIZE,
+                          height: HANDLE_SIZE,
+                          background: handleBg,
+                          border: `${REGION_BORDER_PX}px solid ${regionColor}`,
+                          pointerEvents: "auto",
+                          zIndex: 10,
+                        }}
+                        onMouseDown={(e) => onHandleMouseDown(e, r.id, key)}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+
+              {/* Live drawing rect */}
+              {liveRect && liveRect.width > 0 && liveRect.height > 0 && (() => {
+                const tl = toScreen(liveRect.left, liveRect.top);
+                return (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: tl.x,
+                      top: tl.y,
+                      width: liveRect.width * s,
+                      height: liveRect.height * s,
+                      border: `${REGION_BORDER_PX}px dashed ${regionColor}`,
+                      background: regionMode === "whiteout" ? "rgba(255,255,255,0.85)" : `${regionColor.replace(")", " / 0.08)")}`,
+                    }}
+                  />
+                );
+              })()}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Region list */}
