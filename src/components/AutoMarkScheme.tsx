@@ -681,7 +681,7 @@ function PageWithBoxes({
       <div className="relative w-full overflow-hidden" style={{ minHeight: 200 }}>
         <div
           ref={containerRef}
-          className="relative inline-block select-none"
+          className="outlined-cursors relative inline-block select-none"
           style={{
             maxWidth: "100%",
             transform: `translate(${zoom.offsetX}px, ${zoom.offsetY}px) scale(${zoom.scale})`,
