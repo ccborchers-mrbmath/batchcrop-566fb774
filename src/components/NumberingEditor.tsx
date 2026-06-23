@@ -719,7 +719,7 @@ function NumberedImagePreview({ image, config, onUpdate, onLabelChange }: Number
       <div
         ref={containerRef}
         tabIndex={0}
-        className="relative inline-block select-none rounded outline-none"
+        className="outlined-cursors relative inline-block select-none rounded outline-none"
         style={{
           border: "1px solid hsl(var(--border))",
           cursor: zoom.scale > 1 ? "grab" : "default",
