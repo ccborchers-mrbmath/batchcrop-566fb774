@@ -463,7 +463,7 @@ export function RegionEditor({
       {/* Image + overlay */}
       <div
         ref={containerRef}
-        className="relative select-none overflow-hidden rounded"
+        className="outlined-cursors relative select-none overflow-hidden rounded"
         style={{
           border: "1px solid hsl(var(--border))",
           cursor: zoom.scale > 1 ? "grab" : "crosshair",

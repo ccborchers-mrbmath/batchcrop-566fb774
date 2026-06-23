@@ -217,7 +217,7 @@ export function CropPreviewEditor({
         {/* Image container */}
         <div
           ref={containerRef}
-          className="relative select-none overflow-hidden rounded flex-1 min-w-0"
+          className="outlined-cursors relative select-none overflow-hidden rounded flex-1 min-w-0"
           style={{
             border: "1px solid hsl(var(--border))",
             cursor: zoom.scale > 1 ? "grab" : "default",

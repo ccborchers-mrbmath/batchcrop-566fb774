@@ -151,4 +151,46 @@
     text-transform: uppercase;
     color: hsl(var(--muted-foreground));
   }
+
+  /* High-contrast outlined cursors for image editor surfaces.
+     Ensures the pointer is always visible regardless of image background. */
+  .outlined-cursors,
+  .outlined-cursors * {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M3%203%20L3%2019%20L8%2015%20L11%2022%20L14%2021%20L11%2014%20L18%2014%20Z%27%20fill%3D%27black%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E") 3 3, default;
+  }
+  .outlined-cursors [style*="cursor: default"],
+  .outlined-cursors [style*="cursor:default"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M3%203%20L3%2019%20L8%2015%20L11%2022%20L14%2021%20L11%2014%20L18%2014%20Z%27%20fill%3D%27black%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E") 3 3, default !important;
+  }
+  .outlined-cursors [style*="cursor: crosshair"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20stroke-linecap%3D%27round%27%20fill%3D%27none%27%3E%3Cpath%20d%3D%27M12%202%20V22%20M2%2012%20H22%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M12%202%20V22%20M2%2012%20H22%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, crosshair !important;
+  }
+  .outlined-cursors [style*="cursor: grab"],
+  .outlined-cursors [style*="cursor: grabbing"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M8%2011%20V6%20a1.5%201.5%200%200%201%203%200%20V11%20M11%206%20V5%20a1.5%201.5%200%200%201%203%200%20V11%20M14%206%20a1.5%201.5%200%200%201%203%200%20V14%20M17%208%20a1.5%201.5%200%200%201%203%200%20V16%20a6%206%200%200%201%20-6%206%20H12%20a5%205%200%200%201%20-5%20-5%20V13%20a1.5%201.5%200%200%201%202.5%20-1%27%20fill%3D%27black%27%20stroke%3D%27white%27%20stroke-width%3D%271.5%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E") 12 12, grab !important;
+  }
+  .outlined-cursors [style*="cursor: move"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M12%203%20V21%20M3%2012%20H21%20M9%206%20L12%203%20L15%206%20M9%2018%20L12%2021%20L15%2018%20M6%209%20L3%2012%20L6%2015%20M18%209%20L21%2012%20L18%2015%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M12%203%20V21%20M3%2012%20H21%20M9%206%20L12%203%20L15%206%20M9%2018%20L12%2021%20L15%2018%20M6%209%20L3%2012%20L6%2015%20M18%209%20L21%2012%20L18%2015%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, move !important;
+  }
+  .outlined-cursors [style*="cursor: n-resize"],
+  .outlined-cursors [style*="cursor: s-resize"],
+  .outlined-cursors [style*="cursor: ns-resize"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M12%203%20V21%20M8%207%20L12%203%20L16%207%20M8%2017%20L12%2021%20L16%2017%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M12%203%20V21%20M8%207%20L12%203%20L16%207%20M8%2017%20L12%2021%20L16%2017%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, ns-resize !important;
+  }
+  .outlined-cursors [style*="cursor: e-resize"],
+  .outlined-cursors [style*="cursor: w-resize"],
+  .outlined-cursors [style*="cursor: ew-resize"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M3%2012%20H21%20M7%208%20L3%2012%20L7%2016%20M17%208%20L21%2012%20L17%2016%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M3%2012%20H21%20M7%208%20L3%2012%20L7%2016%20M17%208%20L21%2012%20L17%2016%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, ew-resize !important;
+  }
+  .outlined-cursors [style*="cursor: ne-resize"],
+  .outlined-cursors [style*="cursor: sw-resize"],
+  .outlined-cursors [style*="cursor: nesw-resize"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M5%2019%20L19%205%20M5%2019%20L11%2019%20M5%2019%20L5%2013%20M19%205%20L13%205%20M19%205%20L19%2011%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M5%2019%20L19%205%20M5%2019%20L11%2019%20M5%2019%20L5%2013%20M19%205%20L13%205%20M19%205%20L19%2011%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, nesw-resize !important;
+  }
+  .outlined-cursors [style*="cursor: nw-resize"],
+  .outlined-cursors [style*="cursor: se-resize"],
+  .outlined-cursors [style*="cursor: nwse-resize"] {
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M5%205%20L19%2019%20M5%205%20L11%205%20M5%205%20L5%2011%20M19%2019%20L13%2019%20M19%2019%20L19%2013%27%20stroke%3D%27white%27%20stroke-width%3D%274%27%2F%3E%3Cpath%20d%3D%27M5%205%20L19%2019%20M5%205%20L11%205%20M5%205%20L5%2011%20M19%2019%20L13%2019%20M19%2019%20L19%2013%27%20stroke%3D%27black%27%20stroke-width%3D%272%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E") 12 12, nwse-resize !important;
+  }
 }
+
