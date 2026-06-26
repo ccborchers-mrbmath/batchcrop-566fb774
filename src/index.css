@@ -4,52 +4,52 @@
 
 @layer base {
   :root {
-    --background: 220 20% 22%;
-    --foreground: 210 20% 96%;
+    --background: 195 60% 95%;
+    --foreground: 200 40% 18%;
 
-    --card: 220 18% 28%;
-    --card-foreground: 210 20% 96%;
+    --card: 160 45% 92%;
+    --card-foreground: 200 40% 18%;
 
-    --popover: 220 18% 28%;
-    --popover-foreground: 210 20% 96%;
+    --popover: 160 45% 94%;
+    --popover-foreground: 200 40% 18%;
 
-    --primary: 180 80% 50%;
-    --primary-foreground: 220 20% 8%;
+    --primary: 160 60% 42%;
+    --primary-foreground: 160 50% 98%;
 
-    --secondary: 220 15% 36%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 190 55% 85%;
+    --secondary-foreground: 200 40% 22%;
 
-    --muted: 220 15% 34%;
-    --muted-foreground: 215 12% 65%;
+    --muted: 190 45% 88%;
+    --muted-foreground: 200 25% 42%;
 
-    --accent: 180 80% 50%;
-    --accent-foreground: 220 20% 8%;
+    --accent: 190 70% 55%;
+    --accent-foreground: 200 50% 12%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 15% 40%;
-    --input: 220 15% 36%;
-    --ring: 180 80% 50%;
+    --border: 185 40% 78%;
+    --input: 190 45% 86%;
+    --ring: 160 60% 42%;
 
     --radius: 0.375rem;
 
-    --sidebar-background: 220 20% 22%;
-    --sidebar-foreground: 210 20% 96%;
-    --sidebar-primary: 180 80% 50%;
-    --sidebar-primary-foreground: 220 20% 8%;
-    --sidebar-accent: 220 15% 36%;
-    --sidebar-accent-foreground: 210 20% 96%;
-    --sidebar-border: 220 15% 40%;
-    --sidebar-ring: 180 80% 50%;
+    --sidebar-background: 195 55% 92%;
+    --sidebar-foreground: 200 40% 18%;
+    --sidebar-primary: 160 60% 42%;
+    --sidebar-primary-foreground: 160 50% 98%;
+    --sidebar-accent: 190 55% 85%;
+    --sidebar-accent-foreground: 200 40% 22%;
+    --sidebar-border: 185 40% 78%;
+    --sidebar-ring: 160 60% 42%;
 
     /* custom tokens */
-    --surface: 220 18% 28%;
-    --surface-hover: 220 15% 34%;
-    --drop-zone: 220 18% 32%;
-    --drop-zone-active: 180 80% 50%;
-    --number-input-bg: 220 20% 22%;
-    --grid-line: 220 15% 36%;
+    --surface: 160 45% 92%;
+    --surface-hover: 175 50% 88%;
+    --drop-zone: 185 55% 90%;
+    --drop-zone-active: 160 60% 42%;
+    --number-input-bg: 195 60% 97%;
+    --grid-line: 185 40% 80%;
   }
 }
 
