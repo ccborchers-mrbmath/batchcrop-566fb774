@@ -128,6 +128,83 @@ export default function Index() {
     });
   }, []);
 
+  const beginPdfSelection = useCallback(async (file: File) => {
+    setPdfThumbsLoading(true);
+    try {
+      const pages = await pdfToImages(file, 0.5);
+      const thumbnails = pages.map(({ blob }) => URL.createObjectURL(blob));
+      setPendingPdf({ file, thumbnails, excluded: new Set() });
+    } catch (err) {
+      console.error("PDF preview failed:", err);
+    } finally {
+      setPdfThumbsLoading(false);
+    }
+  }, []);
+
+  const advancePdfQueue = useCallback(() => {
+    const queue = pdfQueueRef.current;
+    if (queue.length) {
+      const next = queue.shift()!;
+      beginPdfSelection(next);
+    }
+  }, [beginPdfSelection]);
+
+  const confirmPdfSelection = useCallback(async () => {
+    if (!pendingPdf) return;
+    const { file, thumbnails, excluded } = pendingPdf;
+    thumbnails.forEach((u) => URL.revokeObjectURL(u));
+    const keepIndices = thumbnails.map((_, i) => i).filter((i) => !excluded.has(i));
+    setPendingPdf(null);
+    if (!keepIndices.length) {
+      advancePdfQueue();
+      return;
+    }
+    setPdfProgress({ done: 0, total: keepIndices.length, name: file.name });
+    try {
+      const pages = await pdfToImages(
+        file,
+        4,
+        (done, total) => setPdfProgress({ done, total, name: file.name }),
+        keepIndices,
+      );
+      const convertedFiles = pages.map(
+        ({ blob, name }) => new File([blob], name, { type: "image/png" }),
+      );
+      addImageFiles(convertedFiles, images.length === 0);
+    } catch (err) {
+      console.error("PDF conversion failed:", err);
+    }
+    setPdfProgress(null);
+    advancePdfQueue();
+  }, [pendingPdf, addImageFiles, images.length, advancePdfQueue]);
+
+  const cancelPdfSelection = useCallback(() => {
+    if (!pendingPdf) return;
+    pendingPdf.thumbnails.forEach((u) => URL.revokeObjectURL(u));
+    setPendingPdf(null);
+    advancePdfQueue();
+  }, [pendingPdf, advancePdfQueue]);
+
+  const togglePdfPage = useCallback((index: number) => {
+    setPendingPdf((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev.excluded);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return { ...prev, excluded: next };
+    });
+  }, []);
+
+  const selectAllPdfPages = useCallback(() => {
+    setPendingPdf((prev) => (prev ? { ...prev, excluded: new Set() } : prev));
+  }, []);
+
+  const deselectAllPdfPages = useCallback(() => {
+    setPendingPdf((prev) =>
+      prev ? { ...prev, excluded: new Set(prev.thumbnails.map((_, i) => i)) } : prev,
+    );
+  }, []);
+
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files);
     const isImageFile = (f: File) =>
@@ -138,25 +215,15 @@ export default function Index() {
     const imageFiles = arr.filter(isImageFile);
     const pdfFiles = arr.filter(isPdfFile);
 
-    const hasImageUpload = imageFiles.length > 0;
     addImageFiles(imageFiles, true);
 
-    for (const pdf of pdfFiles) {
-      setPdfProgress({ done: 0, total: 0, name: pdf.name });
-      try {
-        const pages = await pdfToImages(pdf, 4, (done, total) => {
-          setPdfProgress({ done, total, name: pdf.name });
-        });
-        const convertedFiles = pages.map(
-          ({ blob, name }) => new File([blob], name, { type: "image/png" })
-        );
-        addImageFiles(convertedFiles, !hasImageUpload);
-      } catch (err) {
-        console.error("PDF conversion failed:", err);
-      }
-      setPdfProgress(null);
+    if (pdfFiles.length) {
+      pdfQueueRef.current = pdfFiles.slice(1);
+      beginPdfSelection(pdfFiles[0]);
     }
-  }, [addImageFiles]);
+  }, [addImageFiles, beginPdfSelection]);
+
+
 
   // ── Restore saved session on sign-in ──────────────────────────────
   useEffect(() => {
