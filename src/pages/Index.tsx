@@ -14,6 +14,7 @@ import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/Nu
 import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, RegionDrawMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
+import { PdfPageSelector } from "@/components/PdfPageSelector";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
 import { generateFileNames, buildFullFileName, stitchGroupKey, formatNumberWithLeadingZero } from "@/lib/generateFileNames";
 import { stitchVertically } from "@/lib/stitchImages";
@@ -41,6 +42,13 @@ export default function Index() {
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
+  const [pendingPdf, setPendingPdf] = useState<{
+    file: File;
+    thumbnails: string[];
+    excluded: Set<number>;
+  } | null>(null);
+  const [pdfThumbsLoading, setPdfThumbsLoading] = useState(false);
+  const pdfQueueRef = useRef<File[]>([]);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("batch");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -120,6 +128,83 @@ export default function Index() {
     });
   }, []);
 
+  const beginPdfSelection = useCallback(async (file: File) => {
+    setPdfThumbsLoading(true);
+    try {
+      const pages = await pdfToImages(file, 0.5);
+      const thumbnails = pages.map(({ blob }) => URL.createObjectURL(blob));
+      setPendingPdf({ file, thumbnails, excluded: new Set() });
+    } catch (err) {
+      console.error("PDF preview failed:", err);
+    } finally {
+      setPdfThumbsLoading(false);
+    }
+  }, []);
+
+  const advancePdfQueue = useCallback(() => {
+    const queue = pdfQueueRef.current;
+    if (queue.length) {
+      const next = queue.shift()!;
+      beginPdfSelection(next);
+    }
+  }, [beginPdfSelection]);
+
+  const confirmPdfSelection = useCallback(async () => {
+    if (!pendingPdf) return;
+    const { file, thumbnails, excluded } = pendingPdf;
+    thumbnails.forEach((u) => URL.revokeObjectURL(u));
+    const keepIndices = thumbnails.map((_, i) => i).filter((i) => !excluded.has(i));
+    setPendingPdf(null);
+    if (!keepIndices.length) {
+      advancePdfQueue();
+      return;
+    }
+    setPdfProgress({ done: 0, total: keepIndices.length, name: file.name });
+    try {
+      const pages = await pdfToImages(
+        file,
+        4,
+        (done, total) => setPdfProgress({ done, total, name: file.name }),
+        keepIndices,
+      );
+      const convertedFiles = pages.map(
+        ({ blob, name }) => new File([blob], name, { type: "image/png" }),
+      );
+      addImageFiles(convertedFiles, images.length === 0);
+    } catch (err) {
+      console.error("PDF conversion failed:", err);
+    }
+    setPdfProgress(null);
+    advancePdfQueue();
+  }, [pendingPdf, addImageFiles, images.length, advancePdfQueue]);
+
+  const cancelPdfSelection = useCallback(() => {
+    if (!pendingPdf) return;
+    pendingPdf.thumbnails.forEach((u) => URL.revokeObjectURL(u));
+    setPendingPdf(null);
+    advancePdfQueue();
+  }, [pendingPdf, advancePdfQueue]);
+
+  const togglePdfPage = useCallback((index: number) => {
+    setPendingPdf((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev.excluded);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return { ...prev, excluded: next };
+    });
+  }, []);
+
+  const selectAllPdfPages = useCallback(() => {
+    setPendingPdf((prev) => (prev ? { ...prev, excluded: new Set() } : prev));
+  }, []);
+
+  const deselectAllPdfPages = useCallback(() => {
+    setPendingPdf((prev) =>
+      prev ? { ...prev, excluded: new Set(prev.thumbnails.map((_, i) => i)) } : prev,
+    );
+  }, []);
+
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files);
     const isImageFile = (f: File) =>
@@ -130,25 +215,15 @@ export default function Index() {
     const imageFiles = arr.filter(isImageFile);
     const pdfFiles = arr.filter(isPdfFile);
 
-    const hasImageUpload = imageFiles.length > 0;
     addImageFiles(imageFiles, true);
 
-    for (const pdf of pdfFiles) {
-      setPdfProgress({ done: 0, total: 0, name: pdf.name });
-      try {
-        const pages = await pdfToImages(pdf, 4, (done, total) => {
-          setPdfProgress({ done, total, name: pdf.name });
-        });
-        const convertedFiles = pages.map(
-          ({ blob, name }) => new File([blob], name, { type: "image/png" })
-        );
-        addImageFiles(convertedFiles, !hasImageUpload);
-      } catch (err) {
-        console.error("PDF conversion failed:", err);
-      }
-      setPdfProgress(null);
+    if (pdfFiles.length) {
+      pdfQueueRef.current = pdfFiles.slice(1);
+      beginPdfSelection(pdfFiles[0]);
     }
-  }, [addImageFiles]);
+  }, [addImageFiles, beginPdfSelection]);
+
+
 
   // ── Restore saved session on sign-in ──────────────────────────────
   useEffect(() => {
@@ -727,6 +802,41 @@ export default function Index() {
           </div>
         </div>
       )}
+
+      {/* PDF thumbnail loading overlay */}
+      {pdfThumbsLoading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "hsl(var(--background) / 0.85)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            className="flex flex-col items-center gap-3 rounded-xl px-8 py-7"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", minWidth: 260 }}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText size={18} style={{ color: "hsl(var(--primary))" }} />
+              <span className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                Loading page previews…
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingPdf && (
+        <PdfPageSelector
+          pdfName={pendingPdf.file.name}
+          thumbnails={pendingPdf.thumbnails}
+          excluded={pendingPdf.excluded}
+          onToggle={togglePdfPage}
+          onSelectAll={selectAllPdfPages}
+          onDeselectAll={deselectAllPdfPages}
+          onConfirm={confirmPdfSelection}
+          onCancel={cancelPdfSelection}
+        />
+      )}
+
+
 
       {showNormalizeDialog && (
         <NormalizeDialog
