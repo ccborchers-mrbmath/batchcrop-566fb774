@@ -14,6 +14,7 @@ import { NumberingEditor, NumberedImage, NumberingConfig } from "@/components/Nu
 import { cropImageFile, croppedFileName, extractRegion, regionFileName, CropValues, Region, CropMode, RegionMode, RegionDrawMode, whiteOutImageFile, whiteOutRegions } from "@/lib/cropImage";
 import { hasMixedDimensions, stretchImageToSize, AspectPreset } from "@/lib/normalizeImages";
 import { pdfToImages } from "@/lib/pdfToImages";
+import { PdfPageSelector } from "@/components/PdfPageSelector";
 import { burnTextOntoImage, detectAndReplaceNumber } from "@/lib/burnText";
 import { generateFileNames, buildFullFileName, stitchGroupKey, formatNumberWithLeadingZero } from "@/lib/generateFileNames";
 import { stitchVertically } from "@/lib/stitchImages";
