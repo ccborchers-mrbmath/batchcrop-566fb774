@@ -803,6 +803,41 @@ export default function Index() {
         </div>
       )}
 
+      {/* PDF thumbnail loading overlay */}
+      {pdfThumbsLoading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "hsl(var(--background) / 0.85)", backdropFilter: "blur(4px)" }}
+        >
+          <div
+            className="flex flex-col items-center gap-3 rounded-xl px-8 py-7"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", minWidth: 260 }}
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText size={18} style={{ color: "hsl(var(--primary))" }} />
+              <span className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                Loading page previews…
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingPdf && (
+        <PdfPageSelector
+          pdfName={pendingPdf.file.name}
+          thumbnails={pendingPdf.thumbnails}
+          excluded={pendingPdf.excluded}
+          onToggle={togglePdfPage}
+          onSelectAll={selectAllPdfPages}
+          onDeselectAll={deselectAllPdfPages}
+          onConfirm={confirmPdfSelection}
+          onCancel={cancelPdfSelection}
+        />
+      )}
+
+
+
       {showNormalizeDialog && (
         <NormalizeDialog
           sizes={naturalSizes}
