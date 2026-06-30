@@ -42,6 +42,13 @@ export default function Index() {
   const [naturalSizes, setNaturalSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [showNormalizeDialog, setShowNormalizeDialog] = useState(false);
   const [pdfProgress, setPdfProgress] = useState<{ done: number; total: number; name: string } | null>(null);
+  const [pendingPdf, setPendingPdf] = useState<{
+    file: File;
+    thumbnails: string[];
+    excluded: Set<number>;
+  } | null>(null);
+  const [pdfThumbsLoading, setPdfThumbsLoading] = useState(false);
+  const pdfQueueRef = useRef<File[]>([]);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("batch");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
