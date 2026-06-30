@@ -13,7 +13,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dis
 export async function pdfToImages(
   file: File,
   scale = 4,
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  pageIndices?: number[]
 ): Promise<{ blob: Blob; name: string }[]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -21,8 +22,12 @@ export async function pdfToImages(
   const results: { blob: Blob; name: string }[] = [];
 
   const baseName = file.name.replace(/\.pdf$/i, "");
+  const keepSet = pageIndices ? new Set(pageIndices) : null;
+  const keptTotal = pageIndices?.length ?? total;
 
   for (let i = 1; i <= total; i++) {
+    if (keepSet && !keepSet.has(i - 1)) continue;
+
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale });
 
@@ -43,7 +48,7 @@ export async function pdfToImages(
     const pageNum = String(i).padStart(String(total).length, "0");
     results.push({ blob, name: `${baseName}_p${pageNum}.png` });
 
-    onProgress?.(i, total);
+    onProgress?.(results.length, keptTotal);
   }
 
   return results;
