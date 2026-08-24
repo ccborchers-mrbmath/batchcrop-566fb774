@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_MARKSCHEME = `You analyze a single page image from a Cambridge exam mark scheme PDF.
+const SYSTEM = `You analyze a single page image from a Cambridge exam mark scheme PDF.
 
 The mark scheme is laid out as a table with columns: Question | Answer | Marks | Guidance.
 Identify each "question region" — the rectangular slab of that table belonging to a single ROOT question number (1, 2, 3, …).
@@ -31,39 +31,11 @@ Other rules:
 - Use confidence 0..1.
 - Return regions in TOP-TO-BOTTOM order.`;
 
-const SYSTEM_QUESTIONPAPER = `You analyze a single page image from a Cambridge exam QUESTION PAPER PDF.
-
-Unlike a mark scheme, a question paper is NOT a table. It is prose: numbered questions (1, 2, 3, …) printed down the page, each starting with a bold question number at the left margin, and often containing sub-parts ((a), (b), (i), (ii)), diagrams, blank answer space, and mark allocations like "[3]" at the right.
-Identify each "question region" — the full-width horizontal band belonging to a single ROOT question number.
-
-CRITICAL — group sub-parts together:
-- All sub-parts of the same root number (e.g. 3(a) AND 3(b)) MUST be returned as ONE region with label = the root number ("3", "4", …). Do NOT split sub-parts into separate boxes.
-- A region covers from just ABOVE the root question number down to just above the NEXT root question number (or the bottom of the printed content on the page if it is the last question).
-- INCLUDE everything that belongs to the question: its diagrams, the blank answer lines/space, and the "[marks]" annotations.
-
-CRITICAL — bounding box edges land in the WHITESPACE, never through text or a diagram:
-- TOP edge: in the blank gap just above the question number (do not clip the number or any text above wrongly).
-- BOTTOM edge: in the blank gap just below the question's last content and just above the next question number.
-- LEFT edge: at the very left of the printed text column (x ≈ the page's left text margin, typically a small value like 0.05). Do NOT crop into the question number.
-- RIGHT edge: at the very right of the printed text column (typically x+w ≈ 0.95). Questions are full text-width.
-- The downstream code snaps the top/bottom to the nearest blank (white) row, so it is fine to sit a little inside the gap.
-
-Other rules:
-- Skip page headers, footers, page numbers, exam-board boilerplate, and any "BLANK PAGE" markers.
-- Bounding boxes are NORMALIZED to 0..1 of the full page image (x, y from top-left).
-- If the page begins mid-question with no new root question number at the top, set isContinuationFromPrev=true and use the best-guess label of the question being continued (or "" if unknown).
-- If the last region runs to the bottom of the page content and the question clearly continues on the next page, set continuesOnNext=true.
-- Use confidence 0..1.
-- Return regions in TOP-TO-BOTTOM order.`;
-
-type DocType = "markscheme" | "questionpaper";
-
 interface Body {
   imageBase64: string; // raw base64, no data: prefix
   mimeType?: string;   // default image/png
   pageIndex: number;
   totalPages: number;
-  docType?: DocType;   // default "markscheme"
 }
 
 Deno.serve(async (req) => {
@@ -80,11 +52,7 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const docType: DocType = body.docType === "questionpaper" ? "questionpaper" : "markscheme";
-    const SYSTEM = docType === "questionpaper" ? SYSTEM_QUESTIONPAPER : SYSTEM_MARKSCHEME;
-    const docLabel = docType === "questionpaper" ? "question paper" : "mark scheme";
-
-    const userText = `This is page ${body.pageIndex + 1} of ${body.totalPages} of a Cambridge ${docLabel}. Detect every question region and return them via the detect_questions tool.`;
+    const userText = `This is page ${body.pageIndex + 1} of ${body.totalPages} of a Cambridge mark scheme. Detect every question region and return them via the detect_questions tool.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

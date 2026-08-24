@@ -1,8 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/** Which kind of Cambridge PDF is being processed. */
-export type DocType = "markscheme" | "questionpaper";
-
 export interface NormBBox { x: number; y: number; w: number; h: number; }
 export interface DetectedRegion {
   label: string;
@@ -57,7 +54,6 @@ export async function detectPage(
   pageBlob: Blob,
   pageIndex: number,
   totalPages: number,
-  docType: DocType = "markscheme",
 ): Promise<DetectedRegion[]> {
   const base64 = await blobToBase64(pageBlob);
   const { data, error } = await supabase.functions.invoke("detect-questions", {
@@ -66,7 +62,6 @@ export async function detectPage(
       mimeType: pageBlob.type || "image/png",
       pageIndex,
       totalPages,
-      docType,
     },
   });
   if (error) throw new Error(error.message || "detect-questions failed");
@@ -77,7 +72,6 @@ export async function detectPage(
 export async function detectAllPages(
   pages: Blob[],
   onProgress?: (done: number, total: number) => void,
-  docType: DocType = "markscheme",
   delayMs = 400,
 ): Promise<PageDetection[]> {
   const out: PageDetection[] = [];
@@ -85,7 +79,7 @@ export async function detectAllPages(
     const dims = await loadDims(pages[i]);
     let regions: DetectedRegion[] = [];
     try {
-      regions = await detectPage(pages[i], i, pages.length, docType);
+      regions = await detectPage(pages[i], i, pages.length);
     } catch (e) {
       console.error(`Page ${i + 1} detection failed`, e);
     }
@@ -249,77 +243,15 @@ function snapToTableBorders(
 }
 
 /**
- * Snap the TOP and BOTTOM edges of a bbox to the nearest near-blank (white) row.
- * Used for question papers, which have no table borders — questions are separated
- * by whitespace, so cutting on the whitest nearby row avoids clipping text or
- * diagrams. Horizontal edges are left as supplied (questions are full text-width).
- */
-function snapToWhitespace(
-  imageData: ImageData,
-  px: { x: number; y: number; w: number; h: number },
-  searchPx = 40,
-  darkThreshold = 140,
-  maxDarkFrac = 0.01,
-): { x: number; y: number; w: number; h: number } {
-  const { width: W, height: H, data } = imageData;
-  const isDark = (i: number) => {
-    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    return lum < darkThreshold;
-  };
-  const rowDarkFrac = (y: number, x0: number, x1: number) => {
-    if (y < 0 || y >= H) return 1; // off-page counts as "not blank"
-    let dark = 0;
-    let total = 0;
-    const step = Math.max(1, Math.floor((x1 - x0) / 600));
-    for (let x = x0; x < x1; x += step) {
-      const i = (y * W + x) * 4;
-      if (isDark(i)) dark++;
-      total++;
-    }
-    return total ? dark / total : 1;
-  };
-  // Find the blankest (whitest) row nearest to centerY within the window.
-  const findBlankestRow = (centerY: number, x0: number, x1: number) => {
-    let best = centerY;
-    let bestScore = rowDarkFrac(centerY, x0, x1);
-    for (let dy = 1; dy <= searchPx; dy++) {
-      for (const y of [centerY - dy, centerY + dy]) {
-        const s = rowDarkFrac(y, x0, x1);
-        if (s < bestScore) { bestScore = s; best = y; }
-      }
-    }
-    return bestScore <= maxDarkFrac ? best : centerY;
-  };
-
-  const x0 = Math.max(0, px.x);
-  const x1 = Math.min(W, px.x + px.w);
-  const y0 = Math.max(0, px.y);
-  const y1 = Math.min(H, px.y + px.h);
-
-  const newTop = findBlankestRow(y0, x0, x1);
-  const newBot = findBlankestRow(y1, x0, x1);
-
-  return {
-    x: px.x,
-    y: Math.max(0, Math.min(H - 1, newTop)),
-    w: px.w,
-    h: Math.max(1, newBot - newTop),
-  };
-}
-
-/**
  * Crop pieces from their pages and stitch vertically into a single PNG blob.
- * - Mark schemes: each bbox edge is snapped to the nearest table border.
- * - Question papers: top/bottom edges are snapped to the nearest blank row so a
- *   cut never lands through text or a diagram; horizontal edges are kept as given.
+ * - Each bbox edge is snapped to the nearest table border in the page.
  * - Pieces of differing widths are padded (NOT scaled) with white so internal
- *   layout stays aligned.
+ *   table columns stay aligned.
  */
 export async function buildQuestionImage(
   group: QuestionGroup,
   detections: PageDetection[],
   gapPx = 0,
-  docType: DocType = "markscheme",
 ): Promise<Blob> {
   // Cache page imageData per pageIndex (snapping needs pixel access).
   const pageDataCache = new Map<number, { img: HTMLImageElement; data: ImageData; W: number; H: number }>();
@@ -354,14 +286,11 @@ export async function buildQuestionImage(
       w: Math.round(piece.bbox.w * W),
       h: Math.round(piece.bbox.h * H),
     };
-    // If user manually adjusted, use the bbox exactly. Otherwise snap: mark schemes
-    // snap to table borders, question papers snap top/bottom to blank rows.
+    // If user manually adjusted, use the bbox exactly. Otherwise snap to nearest table border.
     let snap = rawPx;
     if (!piece.manual) {
       const searchPx = Math.max(20, Math.round(Math.min(W, H) * 0.03));
-      snap = docType === "questionpaper"
-        ? snapToWhitespace(data, rawPx, searchPx)
-        : snapToTableBorders(data, rawPx, searchPx);
+      snap = snapToTableBorders(data, rawPx, searchPx);
     }
 
     const sx = Math.max(0, Math.min(W - 1, snap.x));
@@ -404,8 +333,7 @@ export async function buildQuestionImage(
   );
 }
 
-export function questionFileName(label: string, idx: number, docType: DocType = "markscheme"): string {
+export function questionFileName(label: string, idx: number): string {
   const safe = (label || `Q${idx + 1}`).replace(/[<>:"/\\|?*]/g, "_").trim() || `Q${idx + 1}`;
-  const prefix = docType === "questionpaper" ? "QP" : "MS";
-  return `${prefix}_${safe}.png`;
+  return `MS_${safe}.png`;
 }
