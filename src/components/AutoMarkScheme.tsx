@@ -12,6 +12,7 @@ import {
   PageDetection,
   QuestionGroup,
   DetectedRegion,
+  DocType,
 } from "@/lib/autoMarkScheme";
 import { useZoom } from "@/hooks/useZoom";
 import { ZoomControls } from "@/components/ZoomControls";
@@ -26,6 +27,7 @@ interface Props {
 
 export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
   const [step, setStep] = useState<Step>("idle");
+  const [docType, setDocType] = useState<DocType>("markscheme");
   const [pdfName, setPdfName] = useState<string>("");
   const [pages, setPages] = useState<{ blob: Blob; name: string }[]>([]);
   const [renderProgress, setRenderProgress] = useState({ done: 0, total: 0 });
@@ -91,7 +93,7 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     try {
       const det = await detectAllPages(kept.map(({ p }) => p.blob), (done, total) => {
         setDetectProgress({ done, total });
-      });
+      }, docType);
       setDetections(det);
       setGroups(groupIntoQuestions(det));
       setStep("review");
@@ -115,7 +117,7 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     const page = detections[pageIdx];
     if (!page) return;
     try {
-      const regions = await detectPage(page.pageBlob, pageIdx, detections.length);
+      const regions = await detectPage(page.pageBlob, pageIdx, detections.length, docType);
       const next = detections.map((p, i) => i === pageIdx ? { ...p, regions } : p);
       setDetections(next);
       setGroups(groupIntoQuestions(next));
@@ -201,8 +203,8 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
     try {
       const blobs: { name: string; blob: Blob }[] = [];
       for (let i = 0; i < groups.length; i++) {
-        const blob = await buildQuestionImage(groups[i], detections);
-        blobs.push({ name: questionFileName(groups[i].label, i), blob });
+        const blob = await buildQuestionImage(groups[i], detections, 0, docType);
+        blobs.push({ name: questionFileName(groups[i].label, i, docType), blob });
       }
 
       if (sendToQueue) {
@@ -210,10 +212,11 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
         onSendToQueue(files);
       } else {
         const zip = new JSZip();
-        const folder = zip.folder("mark-scheme-questions");
+        const folder = zip.folder(docType === "questionpaper" ? "question-paper-questions" : "mark-scheme-questions");
         blobs.forEach(({ name, blob }) => folder?.file(name, blob));
         const out = await zip.generateAsync({ type: "blob" });
-        saveAs(out, `${pdfName || "mark-scheme"}_questions.zip`);
+        const base = pdfName || (docType === "questionpaper" ? "question-paper" : "mark-scheme");
+        saveAs(out, `${base}_questions.zip`);
       }
       setStep("review");
     } catch (e: any) {
@@ -253,7 +256,7 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
         <div className="flex items-center gap-2">
           <Sparkles size={15} style={{ color: "hsl(var(--primary))" }} />
           <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-            Auto Mark Scheme (AI)
+            {docType === "questionpaper" ? "Auto Question Paper (AI)" : "Auto Mark Scheme (AI)"}
           </h2>
           {pdfName && (
             <span className="label-mono">· {pdfName}.pdf</span>
@@ -294,12 +297,38 @@ export function AutoMarkScheme({ onBack, onSendToQueue }: Props) {
       {step === "idle" && (
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-xl w-full flex flex-col items-center gap-5 text-center">
+            {/* Doc-type toggle */}
+            <div
+              className="inline-flex rounded-lg p-1"
+              style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}
+            >
+              {([
+                { key: "markscheme", label: "Mark Scheme" },
+                { key: "questionpaper", label: "Question Paper" },
+              ] as { key: DocType; label: string }[]).map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setDocType(opt.key)}
+                  className="px-4 py-1.5 text-sm rounded-md transition-colors"
+                  style={{
+                    background: docType === opt.key ? "hsl(var(--primary))" : "transparent",
+                    color: docType === opt.key ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
+                    fontWeight: docType === opt.key ? 600 : 400,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <h3 className="text-xl font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-              Upload a Cambridge mark scheme PDF
+              {docType === "questionpaper"
+                ? "Upload a Cambridge question paper PDF"
+                : "Upload a Cambridge mark scheme PDF"}
             </h3>
             <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-              The app will render every page, ask Gemini to locate each question's region (including
-              questions that span across pages), and stitch them into one image per question.
+              {docType === "questionpaper"
+                ? "The app will render every page, ask Gemini to locate each numbered question (including questions that span across pages), and stitch them into one image per question."
+                : "The app will render every page, ask Gemini to locate each question's region (including questions that span across pages), and stitch them into one image per question."}
             </p>
             <div
               className="drop-zone w-full rounded-xl flex flex-col items-center justify-center gap-3 cursor-pointer p-8"

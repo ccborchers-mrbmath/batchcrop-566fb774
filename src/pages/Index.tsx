@@ -871,7 +871,7 @@ export default function Index() {
             style={{ borderColor: "hsl(var(--primary) / 0.4)", color: "hsl(var(--primary))" }}
           >
             <Sparkles size={13} />
-            Auto Mark Scheme
+            Auto Extract (AI)
           </button>
         )}
 
